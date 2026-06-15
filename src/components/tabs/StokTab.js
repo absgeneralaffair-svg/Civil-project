@@ -19,6 +19,19 @@ export default function StokTab({ materials, loading, refreshData, saveData, all
 
   const handleSave = async (e) => {
     e.preventDefault();
+    
+    if (isEdit) {
+      if (materials.some(m => m.kode === form.kode && m.id !== form.id)) {
+        toast.error("Kode material (Part Number) sudah dipakai oleh material lain!");
+        return;
+      }
+    } else {
+      if (materials.some(m => m.kode === form.kode)) {
+        toast.error("Kode material (Part Number) sudah ada!");
+        return;
+      }
+    }
+
     const data = { kode: form.kode, nama: form.nama, stok: Number(form.stok), min: Number(form.min), satuan: form.satuan, gudang: form.gudang };
     try {
       if (isEdit) {

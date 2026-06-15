@@ -321,23 +321,38 @@ export default function DashboardApp() {
       </main>
 
       <Toaster 
-        position="bottom-center"
+        position="top-center"
         toastOptions={{
-          duration: 2500,
+          duration: 3000,
           style: {
-            background: '#1e293b',
+            background: 'rgba(30, 41, 59, 0.9)',
+            backdropFilter: 'blur(10px)',
             color: '#fff',
-            border: '1px solid #10b981',
-            borderRadius: '8px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
             fontSize: '14px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+            fontWeight: 500,
+            padding: '12px 20px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)',
           },
           success: {
             iconTheme: {
               primary: '#10b981',
               secondary: '#1e293b',
             },
+            style: {
+              borderLeft: '4px solid #10b981',
+            }
           },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#1e293b',
+            },
+            style: {
+              borderLeft: '4px solid #ef4444',
+            }
+          }
         }} 
       />
     </div>

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { FileSpreadsheet, Plus, ArrowUpRight, Search } from "lucide-react";
-import { addItem, updateItem, deleteItem } from "@/lib/db";
+import { addPenggunaanTransaction, updatePenggunaanTransaction, deletePenggunaanTransaction } from "@/lib/db";
 import { toast } from "react-hot-toast";
 import { customConfirm } from "@/lib/confirm";
 
@@ -37,22 +37,25 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
     
     try {
       if (isEdit) {
-        await updateItem("penggunaan", form.id, data);
+        const oldLog = logs.find(l => l.id === form.id);
+        const oldJumlah = oldLog ? Number(oldLog.jumlah) : 0;
+        await updatePenggunaanTransaction(form.id, form.materialId, oldJumlah, data);
       } else {
-        await addItem("penggunaan", data);
+        await addPenggunaanTransaction(data);
       }
       saveData();
       setShowModal(false);
+      toast.success("Data berhasil disimpan.");
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan data!");
+      toast.error(err.message || "Gagal menyimpan data!");
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (item) => {
     customConfirm("Hapus log penggunaan ini?", async () => {
       try {
-        await deleteItem("penggunaan", id);
+        await deletePenggunaanTransaction(item.id, item.materialId, item.jumlah);
         saveData();
         toast.success("Catatan barang keluar dihapus.");
       } catch (err) {
@@ -178,7 +181,7 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button className="btn btn-small" onClick={() => handleOpenModal(item)}>Edit</button>
-                        <button className="btn btn-small btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>
+                        <button className="btn btn-small btn-danger" onClick={() => handleDelete(item)}>Hapus</button>
                       </div>
                     </td>
                   </tr>

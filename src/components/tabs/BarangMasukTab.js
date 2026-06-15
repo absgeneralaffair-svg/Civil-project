@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { FileSpreadsheet, Plus, PackageCheck, Boxes, Search } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { customConfirm } from "@/lib/confirm";
-import { addItem, updateItem, deleteItem } from "@/lib/db";
+import { updateItem, addBarangMasukTransaction, updateBarangMasukTransaction, deleteBarangMasukTransaction } from "@/lib/db";
 
 export default function BarangMasukTab({ masukLogs, materials, loading, refreshData, saveData, allData }) {
   const [showModal, setShowModal] = useState(false);
@@ -34,9 +34,11 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
     
     try {
       if (isEdit) {
-        await updateItem("barangMasuk", form.id, data);
+        const oldLog = masukLogs.find(l => l.id === form.id);
+        const oldJumlah = oldLog ? Number(oldLog.jumlah) : 0;
+        await updateBarangMasukTransaction(form.id, form.materialId, oldJumlah, data);
       } else {
-        await addItem("barangMasuk", data);
+        await addBarangMasukTransaction(data);
       }
 
       if (selectedOrder && !isEdit) {
@@ -56,10 +58,10 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (item) => {
     customConfirm("Hapus catatan barang masuk ini?", async () => {
       try {
-        await deleteItem("barangMasuk", id);
+        await deleteBarangMasukTransaction(item.id, item.materialId, item.jumlah);
         saveData();
         toast.success("Catatan dihapus.");
       } catch (err) {
@@ -164,7 +166,7 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button className="btn btn-small" onClick={() => handleOpenModal(item)}>Edit</button>
-                        <button className="btn btn-small btn-danger" onClick={() => handleDelete(item.id)}>Hapus</button>
+                        <button className="btn btn-small btn-danger" onClick={() => handleDelete(item)}>Hapus</button>
                       </div>
                     </td>
                   </tr>
