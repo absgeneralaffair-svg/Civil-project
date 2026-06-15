@@ -3,12 +3,13 @@ import React, { useState } from "react";
 import { FileSpreadsheet, Plus, PackageCheck, Boxes, Search } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { customConfirm } from "@/lib/confirm";
-import { updateItem, addBarangMasukTransaction, updateBarangMasukTransaction, deleteBarangMasukTransaction } from "@/lib/db";
+import { updateItem, addItem, addBarangMasukTransaction, updateBarangMasukTransaction, deleteBarangMasukTransaction } from "@/lib/db";
 
 export default function BarangMasukTab({ masukLogs, materials, loading, refreshData, saveData, allData }) {
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({ id: "", tanggal: "", materialId: "", materialNameInput: "", orderInput: "", orderId: "", jumlahOrder: 0, jumlah: 0, mr: "", pr: "", keperluan: "" });
   const handleOpenModal = (item = null) => {
     if (item) { 
@@ -30,50 +31,104 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const data = { tanggal: form.tanggal, materialId: form.materialId, orderId: form.orderId || selectedOrder || "", jumlah: Number(form.jumlah), mr: form.mr, pr: form.pr, keperluan: form.keperluan };
+
+    const targetOrderId = form.orderId || selectedOrder;
+    if (!targetOrderId) {
+        toast.error("Silakan pilih Order Barang terlebih dahulu!");
+        return;
+    }
     
+    const orderData = allData.ordersData.find(o => o.id === targetOrderId);
+    if (!orderData) {
+        toast.error("Data order tidak ditemukan!");
+        return;
+    }
+
+    let finalMaterialId = form.materialId;
+
+    if (!isEdit && !finalMaterialId) {
+       const existingMat = materials.find(m => m.kode === orderData.partnumber || m.nama === orderData.nama);
+       if (existingMat) {
+           finalMaterialId = existingMat.id;
+       } else {
+           const newMatData = {
+              kode: orderData.partnumber || `PN-${Date.now().toString().slice(-6)}`,
+              nama: orderData.nama || "Material Baru",
+              stok: 0,
+              min: 0,
+              satuan: orderData.satuan || "Unit",
+              gudang: "Gudang Utama"
+           };
+           try {
+               finalMaterialId = await addItem("stok", newMatData);
+           } catch (err) {
+               toast.error("Gagal membuat data stok otomatis!");
+               return;
+           }
+       }
+    }
+
+    if (!finalMaterialId) {
+       toast.error("Error: Material ID gagal diidentifikasi!");
+       return;
+    }
+
+    const data = { tanggal: form.tanggal, materialId: finalMaterialId, orderId: targetOrderId, jumlah: Number(form.jumlah), mr: form.mr, pr: form.pr, keperluan: form.keperluan };
+    
+    setIsSaving(true);
+    const toastId = toast.loading("Memproses penyimpanan...");
+
     try {
       if (isEdit) {
         const oldLog = masukLogs.find(l => l.id === form.id);
         const oldJumlah = oldLog ? Number(oldLog.jumlah) : 0;
-        await updateBarangMasukTransaction(form.id, form.materialId, oldJumlah, data);
+        const oldMaterialId = oldLog ? oldLog.materialId : null;
+        await updateBarangMasukTransaction(form.id, oldMaterialId, oldJumlah, data);
       } else {
         await addBarangMasukTransaction(data);
       }
 
-      if (selectedOrder && !isEdit) {
-        const orderData = pendingOrders.find(o => o.id === selectedOrder);
+      if (targetOrderId && !isEdit) {
         if (orderData) {
             const newStatus = Number(form.jumlah) >= Number(orderData.qty) ? "Selesai" : "Partial";
-            await updateItem("ordersData", selectedOrder, { status: newStatus });
+            await updateItem("ordersData", targetOrderId, { status: newStatus });
         }
       }
 
       saveData();
       setShowModal(false);
-      toast.success("Data berhasil disimpan!");
+      toast.success("Data penerimaan berhasil dicatat!", { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error("Gagal menyimpan data!");
+      toast.error(err.message || "Gagal menyimpan data!", { id: toastId });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = (item) => {
     customConfirm("Hapus catatan barang masuk ini?", async () => {
+      const toastId = toast.loading("Menghapus catatan...");
       try {
         await deleteBarangMasukTransaction(item.id, item.materialId, item.jumlah);
         saveData();
-        toast.success("Catatan dihapus.");
+        toast.success("Catatan dihapus.", { id: toastId });
       } catch (err) {
         console.error(err);
-        toast.error("Gagal menghapus data!");
+        toast.error(err.message || "Gagal menghapus data!", { id: toastId });
       }
     });
   };
 
-  const getMaterialName = (matId) => materials.find(m => m.id === matId)?.nama || matId || '-';
+  const getMaterialName = (matId) => {
+    const mat = materials.find(m => m.id === matId);
+    if (mat) return mat.nama;
+    if (!matId) return '-';
+    if (matId.length > 15) return '⚠ Material Dihapus / Tidak Valid';
+    return matId;
+  };
   const getMaterialKode = (matId) => materials.find(m => m.id === matId)?.kode || '-';
-  const getMaterialSatuan = (matId) => materials.find(m => m.id === matId)?.satuan || '';
+  const getMaterialSatuan = (matId) => materials.find(m => m.id === matId)?.satuan || '-';
 
   const totalTransaksi = masukLogs.length;
   const totalKuantitas = masukLogs.reduce((sum, m) => sum + (Number(m.jumlah) || 0), 0);
@@ -229,26 +284,6 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
                 <small style={{ color: 'var(--text-muted)' }}>*Memilih order akan mengupdate status order otomatis.</small>
               </div>
 
-              <div className="form-group" style={{ marginBottom: "15px" }}>
-                <label>2. Cari / Hubungkan dengan Material di Stok Inventaris</label>
-                <input 
-                  type="text" 
-                  list="material-list" 
-                  required 
-                  value={form.materialNameInput || ""} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    const mat = materials.find(m => `[${m.kode}] ${m.nama}` === val);
-                    setForm({...form, materialNameInput: val, materialId: mat ? mat.id : ""});
-                  }} 
-                  placeholder="Ketik nama atau kode material dari daftar stok..." 
-                />
-                <datalist id="material-list">
-                  {materials.map(m => <option key={m.id} value={`[${m.kode}] ${m.nama}`} />)}
-                </datalist>
-                {!form.materialId && form.materialNameInput && <small style={{ color: 'var(--accent-orange)' }}>Perhatian: Material belum ada di stok utama. Pastikan menambahkannya di menu Stok Material agar tercatat.</small>}
-              </div>
-
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>No. MR</label>
@@ -281,7 +316,9 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Simpan Log</button>
+                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                  {isSaving ? "Menyimpan..." : "Simpan Log"}
+                </button>
               </div>
             </form>
           </div>

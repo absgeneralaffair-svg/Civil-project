@@ -9,6 +9,7 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({ id: "", tanggal: "", materialId: "", materialNameInput: "", jumlah: 0, faseId: "", faseNameInput: "", subPekerjaanId: "", subPekerjaanNameInput: "", penerima: "", keterangan: "", mr: "", pr: "" });
 
   const handleOpenModal = (item = null) => {
@@ -33,40 +34,59 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
 
   const handleSave = async (e) => {
     e.preventDefault();
+
+    if (!form.materialId) {
+       toast.error("Error: Material harus dipilih dari daftar stok yang tersedia!");
+       return;
+    }
+
     const data = { tanggal: form.tanggal, materialId: form.materialId, jumlah: Number(form.jumlah), faseId: form.faseId, subPekerjaanId: form.subPekerjaanId, penerima: form.penerima, keterangan: form.keterangan, mr: form.mr, pr: form.pr };
     
+    setIsSaving(true);
+    const toastId = toast.loading("Memproses penyimpanan...");
+
     try {
       if (isEdit) {
         const oldLog = logs.find(l => l.id === form.id);
         const oldJumlah = oldLog ? Number(oldLog.jumlah) : 0;
-        await updatePenggunaanTransaction(form.id, form.materialId, oldJumlah, data);
+        const oldMaterialId = oldLog ? oldLog.materialId : null;
+        await updatePenggunaanTransaction(form.id, oldMaterialId, oldJumlah, data);
       } else {
         await addPenggunaanTransaction(data);
       }
       saveData();
       setShowModal(false);
-      toast.success("Data berhasil disimpan.");
+      toast.success("Data berhasil disimpan!", { id: toastId });
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Gagal menyimpan data!");
+      toast.error(err.message || "Gagal menyimpan data!", { id: toastId });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = (item) => {
-    customConfirm("Hapus log penggunaan ini?", async () => {
+    customConfirm("Hapus catatan penggunaan ini?", async () => {
+      const toastId = toast.loading("Menghapus catatan...");
       try {
         await deletePenggunaanTransaction(item.id, item.materialId, item.jumlah);
         saveData();
-        toast.success("Catatan barang keluar dihapus.");
+        toast.success("Catatan dihapus.", { id: toastId });
       } catch (err) {
         console.error(err);
-        toast.error("Gagal menghapus data!");
+        toast.error(err.message || "Gagal menghapus data!", { id: toastId });
       }
     });
   };
 
-  const getMaterialName = (matId) => materials.find(m => m.id === matId)?.nama || matId || '-';
-  const getMaterialSatuan = (matId) => materials.find(m => m.id === matId)?.satuan || '';
+  const getMaterialName = (matId) => {
+    const mat = materials.find(m => m.id === matId);
+    if (mat) return mat.nama;
+    if (!matId) return '-';
+    if (matId.length > 15) return '⚠ Material Dihapus / Tidak Valid';
+    return matId;
+  };
+  const getMaterialSatuan = (matId) => materials.find(m => m.id === matId)?.satuan || '-';
   const getMaterialKode = (matId) => materials.find(m => m.id === matId)?.kode || '-';
   const getFaseName = (fId) => projects.find(f => f.id === fId)?.nama || '-';
   const getSubName = (sId) => subPekerjaan.find(s => s.id === sId)?.nama || '-';
@@ -314,7 +334,9 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Simpan Log</button>
+                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                  {isSaving ? "Menyimpan..." : "Simpan Log"}
+                </button>
               </div>
             </form>
           </div>

@@ -12,30 +12,41 @@ function analyzeDateSchedule(jadwalMulai, jadwalSelesai, aktualMulai, aktualSele
     
     let aMulai = aktualMulai ? new Date(aktualMulai) : null;
     let aSelesai = aktualSelesai ? new Date(aktualSelesai) : null;
+    const now = new Date();
     
-    if (!aMulai && new Date() > jMulai) {
-        return { status: '<span class="badge" style="background:var(--danger-color)">Belum Mulai (Terlambat)</span>', selisih: 0, notice: 'Harusnya sudah mulai', targetHari, aktualHari: 0 };
+    if (!aMulai && now > jMulai) {
+        const terlambatMulai = Math.ceil((now - jMulai) / (1000 * 60 * 60 * 24));
+        return { status: `<span class="badge" style="background:var(--danger-color)">Belum Mulai (Terlambat ${terlambatMulai} Hari)</span>`, selisih: 0, notice: 'Harusnya sudah mulai', targetHari, aktualHari: 0 };
     }
     if (!aMulai) return { status: '<span class="badge" style="background:#555">Belum Mulai</span>', selisih: 0, notice: '', targetHari, aktualHari: 0 };
     
-    const endDate = aSelesai ? aSelesai : new Date();
+    const endDate = aSelesai ? aSelesai : now;
     let aktualHari = Math.ceil((endDate - aMulai) / (1000 * 60 * 60 * 24)) + 1;
     if (aktualHari <= 0) aktualHari = 1;
     
     const selisihHari = targetHari - aktualHari; 
 
+    let hariTerlambat = 0;
+    if (endDate > jSelesai) {
+        hariTerlambat = Math.ceil((endDate - jSelesai) / (1000 * 60 * 60 * 24));
+    }
+
     let notice = '';
     if (aMulai > jMulai) notice = 'Mulai Terlambat';
     
     let status = '';
-    if (progress >= 100 && selisihHari >= 0) {
-        status = '<span class="badge" style="background:var(--success-color)">Selesai (Sesuai)</span>';
-    } else if (progress >= 100 && selisihHari < 0) {
-        status = '<span class="badge" style="background:var(--warning-color)">Selesai (Terlambat)</span>';
-    } else if (progress < 100 && selisihHari >= 0) {
-        status = '<span class="badge" style="background:var(--primary-color)">Berjalan (Sesuai)</span>';
+    if (progress >= 100) {
+        if (hariTerlambat > 0) {
+            status = `<span class="badge" style="background:var(--warning-color)">Selesai (Terlambat ${hariTerlambat} Hari)</span>`;
+        } else {
+            status = '<span class="badge" style="background:var(--success-color)">Selesai (Sesuai)</span>';
+        }
     } else {
-        status = '<span class="badge" style="background:var(--warning-color)">Berjalan (Terlambat)</span>';
+        if (hariTerlambat > 0) {
+            status = `<span class="badge" style="background:var(--warning-color)">Berjalan (Terlambat ${hariTerlambat} Hari)</span>`;
+        } else {
+            status = '<span class="badge" style="background:var(--primary-color)">Berjalan (Sesuai)</span>';
+        }
     }
 
     return { status, selisih: selisihHari, notice, targetHari, aktualHari };
@@ -69,7 +80,7 @@ const ProgressBar = ({ value, color = "var(--primary-color)", dynamicColor = fal
 export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refreshData, saveData, allData }) {
   const [expandedFases, setExpandedFases] = useState({});
   const [expandedSubs, setExpandedSubs] = useState({});
-  const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": true, "Maintenance": true, "Pekerjaan Lain-lain": true });
+  const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": false, "Maintenance": false, "Pekerjaan Lain-lain": false });
   const [searchTerm, setSearchTerm] = useState("");
   
   // States for ITEM Modal
@@ -202,32 +213,6 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   return (
     <section className="tab-panel active printable-area" style={{ animation: 'fadeIn 0.3s ease' }}>
-      
-      {/* WIDGET KLASIFIKASI */}
-      <div className="kpi-grid non-printable" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '24px' }}>
-        {KLASIFIKASI_DATA.map(klas => {
-            const stats = getKlasifikasiProgress(klas.id);
-            return (
-                <div key={klas.id} className="kpi-card" style={{ borderTop: `4px solid ${klas.color}` }}>
-                    <div className="kpi-info" style={{ width: '100%' }}>
-                        <span className="kpi-label" style={{ color: klas.color, fontWeight: 'bold' }}>{klas.id}</span>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px' }}>
-                            <div>
-                                <h3 className="kpi-value" style={{ fontSize: '1.5rem' }}>{stats.avgProgres}%</h3>
-                                <span className="kpi-trend" style={{ color: "var(--text-secondary)" }}>{stats.count} Fase Proyek</span>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span className="kpi-trend">Target: {stats.avgTarget}%</span>
-                            </div>
-                        </div>
-                        <div style={{ marginTop: '12px' }}>
-                            <ProgressBar value={stats.avgProgres} color={klas.color} />
-                        </div>
-                    </div>
-                </div>
-            );
-        })}
-      </div>
 
       <div className="glass-card">
         <div className="card-header-action non-printable" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>

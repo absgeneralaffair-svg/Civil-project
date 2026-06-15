@@ -3,8 +3,11 @@ import { toast } from "react-hot-toast";
 export const customConfirm = (message, onConfirm) => {
   toast.custom((t) => (
     <div 
-      className={`${t.visible ? 'animate-enter' : 'animate-leave'}`}
       style={{
+        marginTop: '30vh',
+        transform: `scale(${t.visible ? 1 : 0.95})`,
+        opacity: t.visible ? 1 : 0,
+        transition: 'all 0.15s ease-out',
         maxWidth: '450px',
         width: '100%',
         backgroundColor: '#1e293b',
@@ -16,6 +19,7 @@ export const customConfirm = (message, onConfirm) => {
         display: 'flex',
         flexDirection: 'column',
         gap: '20px',
+        zIndex: 99999,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>

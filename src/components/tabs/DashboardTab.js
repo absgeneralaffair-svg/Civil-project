@@ -12,33 +12,48 @@ function analyzeDateSchedule(jadwalMulai, jadwalSelesai, aktualMulai, aktualSele
     const jMulai = hasJadwal ? new Date(jadwalMulai) : null;
     const jSelesai = hasJadwal ? new Date(jadwalSelesai) : null;
 
+    if (!hasJadwal) return { statusText: 'Belum di-set', isDelayed: false, badgeClass: 'badge-gray' };
+
+    let aMulai = aktualMulai ? new Date(aktualMulai) : null;
+    let aSelesai = aktualSelesai ? new Date(aktualSelesai) : null;
+
+    const endDate = aSelesai ? aSelesai : now;
+    let selisihHari = 0;
+    
+    if (endDate > jSelesai) {
+        selisihHari = Math.ceil((endDate - jSelesai) / (1000 * 60 * 60 * 24));
+    }
+
     if (progress >= 100) {
-        statusText = 'Selesai';
-        badgeClass = 'badge-green';
-        if (hasJadwal && now > jSelesai && !aktualSelesai) {
-            statusText = 'Selesai (Terlambat)';
-            isDelayed = true;
-            badgeClass = 'badge-orange';
-        } else if (hasJadwal) {
-            statusText = 'Selesai (Sesuai)';
+        if (selisihHari > 0) {
+           statusText = `Selesai (Terlambat ${selisihHari} Hari)`;
+           isDelayed = true;
+           badgeClass = 'badge-orange';
+        } else {
+           statusText = 'Selesai (Sesuai)';
+           badgeClass = 'badge-green';
         }
     } else if (progress > 0) {
-        statusText = 'Berjalan';
-        badgeClass = 'badge-blue';
-        if (hasJadwal && now > jSelesai) {
-            statusText = 'Berjalan (Terlambat)';
+        if (now > jSelesai) {
+            statusText = `Berjalan (Terlambat ${selisihHari} Hari)`;
             isDelayed = true;
             badgeClass = 'badge-orange';
-        } else if (hasJadwal) {
+        } else {
             statusText = 'Berjalan (On-Track)';
+            badgeClass = 'badge-blue';
         }
     } else {
-        if (hasJadwal && now > jMulai) {
-            statusText = 'Belum Mulai (Terlambat)';
+        if (now > jMulai) {
+            const terlambatMulai = Math.ceil((now - jMulai) / (1000 * 60 * 60 * 24));
+            statusText = `Belum Mulai (Terlambat ${terlambatMulai} Hari)`;
             isDelayed = true;
             badgeClass = 'badge-red';
+        } else {
+            statusText = 'Belum Mulai';
+            badgeClass = 'badge-gray';
         }
     }
+    
     return { statusText, isDelayed, badgeClass };
 }
 
@@ -91,9 +106,53 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
 
   const criticalMaterials = materials.filter((m) => (Number(m.stok) || 0) <= (Number(m.min) || 0));
 
+  const KLASIFIKASI_DATA = [
+    { id: "Project Baru", color: "var(--accent-blue)" },
+    { id: "Maintenance", color: "var(--accent-green)" },
+    { id: "Pekerjaan Lain-lain", color: "var(--text-muted)" }
+  ];
+
+  const getKlasifikasiProgress = (klasId) => {
+    const klasFases = filteredProjects.filter(p => p.klasifikasi === klasId);
+    if (klasFases.length === 0) return { avgTarget: 0, avgProgres: 0, count: 0 };
+    const totalTarget = klasFases.reduce((sum, f) => sum + (f.target || 0), 0);
+    const totalProgres = klasFases.reduce((sum, f) => sum + (f.progres || 0), 0);
+    return {
+        avgTarget: (totalTarget / klasFases.length).toFixed(1),
+        avgProgres: (totalProgres / klasFases.length).toFixed(1),
+        count: klasFases.length
+    };
+  };
+
   return (
     <section id="tab-dashboard" className="tab-panel active" style={{ display: 'block', animation: 'fadeIn 0.3s ease', overflowY: 'auto', paddingRight: '10px' }}>
       
+      {/* WIDGET KLASIFIKASI */}
+      <div className="kpi-grid non-printable" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '24px' }}>
+        {KLASIFIKASI_DATA.map(klas => {
+            const stats = getKlasifikasiProgress(klas.id);
+            return (
+                <div key={klas.id} className="kpi-card" style={{ borderTop: `4px solid ${klas.color}` }}>
+                    <div className="kpi-info" style={{ width: '100%' }}>
+                        <span className="kpi-label" style={{ color: klas.color, fontWeight: 'bold' }}>{klas.id}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px' }}>
+                            <div>
+                                <h3 className="kpi-value" style={{ fontSize: '1.5rem' }}>{stats.avgProgres}%</h3>
+                                <span className="kpi-trend" style={{ color: "var(--text-secondary)" }}>{stats.count} Fase Proyek</span>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <span className="kpi-trend">Target: {stats.avgTarget}%</span>
+                            </div>
+                        </div>
+                        <div style={{ marginTop: '12px' }}>
+                            <ProgressBar value={stats.avgProgres} color={klas.color} />
+                        </div>
+                    </div>
+                </div>
+            );
+        })}
+      </div>
+
       {/* KPI CARDS (Schedule Focused) */}
       <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '24px' }}>
         <div className="kpi-card glow-blue" onClick={() => setModalData({ title: "Semua Fase Proyek", data: analyzedProjects })} style={{ cursor: 'pointer', transition: 'transform 0.2s' }}>

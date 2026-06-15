@@ -5,7 +5,7 @@ const PROJECT_ID = "main-project";
 
 export const subscribeCollection = (collectionName, callback) => {
   return onSnapshot(collection(db, "projects", PROJECT_ID, collectionName), (snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     callback(data);
   }, (error) => {
     console.error(`Error listening to ${collectionName}:`, error);
@@ -13,10 +13,10 @@ export const subscribeCollection = (collectionName, callback) => {
 };
 
 export const addItem = async (collectionName, data) => {
-  // If data already has an 'id' from legacy structure, we could optionally use setDoc
-  // But standard subcollections use addDoc to auto-generate IDs
+  const { id, ...payload } = data;
   const colRef = collection(db, "projects", PROJECT_ID, collectionName);
-  await addDoc(colRef, data);
+  const docRef = await addDoc(colRef, payload);
+  return docRef.id;
 };
 
 export const updateItem = async (collectionName, id, data) => {
@@ -56,8 +56,12 @@ export const addPenggunaanTransaction = async (data) => {
 };
 
 export const deletePenggunaanTransaction = async (id, materialId, jumlah) => {
-  const stockRef = doc(db, "projects", PROJECT_ID, "stok", materialId);
   const logRef = doc(db, "projects", PROJECT_ID, "penggunaan", id);
+  if (!materialId) {
+    await deleteDoc(logRef);
+    return;
+  }
+  const stockRef = doc(db, "projects", PROJECT_ID, "stok", materialId);
   await runTransaction(db, async (transaction) => {
     const stockDoc = await transaction.get(stockRef);
     if (stockDoc.exists()) {
@@ -68,14 +72,41 @@ export const deletePenggunaanTransaction = async (id, materialId, jumlah) => {
   });
 };
 
-export const updatePenggunaanTransaction = async (id, materialId, oldJumlah, newData) => {
-  if (materialId !== newData.materialId) {
-    const logRef = doc(db, "projects", PROJECT_ID, "penggunaan", id);
-    await updateDoc(logRef, newData);
+export const updatePenggunaanTransaction = async (id, oldMaterialId, oldJumlah, newData) => {
+  const logRef = doc(db, "projects", PROJECT_ID, "penggunaan", id);
+  if (!oldMaterialId) {
+    const newStockRef = doc(db, "projects", PROJECT_ID, "stok", newData.materialId);
+    await runTransaction(db, async (transaction) => {
+      const newStockDoc = await transaction.get(newStockRef);
+      if (newStockDoc.exists()) {
+        const currentStock = Number(newStockDoc.data().stok) || 0;
+        transaction.update(newStockRef, { stok: currentStock - Number(newData.jumlah) });
+      }
+      transaction.update(logRef, newData);
+    });
     return;
   }
-  const stockRef = doc(db, "projects", PROJECT_ID, "stok", materialId);
-  const logRef = doc(db, "projects", PROJECT_ID, "penggunaan", id);
+  
+  if (oldMaterialId !== newData.materialId) {
+    const oldStockRef = doc(db, "projects", PROJECT_ID, "stok", oldMaterialId);
+    const newStockRef = doc(db, "projects", PROJECT_ID, "stok", newData.materialId);
+    await runTransaction(db, async (transaction) => {
+      const oldStockDoc = await transaction.get(oldStockRef);
+      const newStockDoc = await transaction.get(newStockRef);
+      if (oldStockDoc.exists()) {
+        const currentStock = Number(oldStockDoc.data().stok) || 0;
+        transaction.update(oldStockRef, { stok: currentStock + Number(oldJumlah) }); // Kembalikan stok lama
+      }
+      if (newStockDoc.exists()) {
+        const currentStock = Number(newStockDoc.data().stok) || 0;
+        transaction.update(newStockRef, { stok: currentStock - Number(newData.jumlah) }); // Potong stok baru
+      }
+      transaction.update(logRef, newData);
+    });
+    return;
+  }
+
+  const stockRef = doc(db, "projects", PROJECT_ID, "stok", oldMaterialId);
   await runTransaction(db, async (transaction) => {
     const stockDoc = await transaction.get(stockRef);
     if (stockDoc.exists()) {
@@ -100,8 +131,12 @@ export const addBarangMasukTransaction = async (data) => {
 };
 
 export const deleteBarangMasukTransaction = async (id, materialId, jumlah) => {
-  const stockRef = doc(db, "projects", PROJECT_ID, "stok", materialId);
   const logRef = doc(db, "projects", PROJECT_ID, "barangMasuk", id);
+  if (!materialId) {
+    await deleteDoc(logRef);
+    return;
+  }
+  const stockRef = doc(db, "projects", PROJECT_ID, "stok", materialId);
   await runTransaction(db, async (transaction) => {
     const stockDoc = await transaction.get(stockRef);
     if (stockDoc.exists()) {
@@ -112,14 +147,41 @@ export const deleteBarangMasukTransaction = async (id, materialId, jumlah) => {
   });
 };
 
-export const updateBarangMasukTransaction = async (id, materialId, oldJumlah, newData) => {
-  if (materialId !== newData.materialId) {
-    const logRef = doc(db, "projects", PROJECT_ID, "barangMasuk", id);
-    await updateDoc(logRef, newData);
+export const updateBarangMasukTransaction = async (id, oldMaterialId, oldJumlah, newData) => {
+  const logRef = doc(db, "projects", PROJECT_ID, "barangMasuk", id);
+  if (!oldMaterialId) {
+    const newStockRef = doc(db, "projects", PROJECT_ID, "stok", newData.materialId);
+    await runTransaction(db, async (transaction) => {
+      const newStockDoc = await transaction.get(newStockRef);
+      if (newStockDoc.exists()) {
+        const currentStock = Number(newStockDoc.data().stok) || 0;
+        transaction.update(newStockRef, { stok: currentStock + Number(newData.jumlah) });
+      }
+      transaction.update(logRef, newData);
+    });
     return;
   }
-  const stockRef = doc(db, "projects", PROJECT_ID, "stok", materialId);
-  const logRef = doc(db, "projects", PROJECT_ID, "barangMasuk", id);
+  
+  if (oldMaterialId !== newData.materialId) {
+    const oldStockRef = doc(db, "projects", PROJECT_ID, "stok", oldMaterialId);
+    const newStockRef = doc(db, "projects", PROJECT_ID, "stok", newData.materialId);
+    await runTransaction(db, async (transaction) => {
+      const oldStockDoc = await transaction.get(oldStockRef);
+      const newStockDoc = await transaction.get(newStockRef);
+      if (oldStockDoc.exists()) {
+        const currentStock = Number(oldStockDoc.data().stok) || 0;
+        transaction.update(oldStockRef, { stok: currentStock - Number(oldJumlah) }); // Tarik kembali stok lama
+      }
+      if (newStockDoc.exists()) {
+        const currentStock = Number(newStockDoc.data().stok) || 0;
+        transaction.update(newStockRef, { stok: currentStock + Number(newData.jumlah) }); // Tambah stok baru
+      }
+      transaction.update(logRef, newData);
+    });
+    return;
+  }
+
+  const stockRef = doc(db, "projects", PROJECT_ID, "stok", oldMaterialId);
   await runTransaction(db, async (transaction) => {
     const stockDoc = await transaction.get(stockRef);
     if (stockDoc.exists()) {

@@ -8,7 +8,7 @@ import { customConfirm } from "@/lib/confirm";
 export default function RabTab({ rabs, projects, subPekerjaan, materials, loading, refreshData, saveData, allData }) {
   const [expandedFases, setExpandedFases] = useState({});
   const [expandedSubs, setExpandedSubs] = useState({});
-  const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": true, "Maintenance": true, "Pekerjaan Lain-lain": true });
+  const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": false, "Maintenance": false, "Pekerjaan Lain-lain": false });
   const [searchTerm, setSearchTerm] = useState("");
   
   const [showModal, setShowModal] = useState(false);
@@ -29,6 +29,8 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   const toggleSub = (id) => setExpandedSubs(prev => ({ ...prev, [id]: !prev[id] }));
   const toggleKlasifikasi = (id) => setExpandedKlasifikasi(prev => ({ ...prev, [id]: !prev[id] }));
 
+  const [isSaving, setIsSaving] = useState(false);
+
   // --- FASE CRUD ---
   const handleOpenFaseModal = (item = null) => {
     if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "" }); setIsEditFase(true); }
@@ -37,6 +39,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   };
   const handleSaveFase = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       if (isEditFase) {
         await updateItem("fases", faseForm.id, faseForm);
@@ -47,7 +50,9 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
       setShowFaseModal(false);
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan Fase!");
+      toast.error(err.message || "Gagal menyimpan Fase!");
+    } finally {
+      setIsSaving(false);
     }
   };
   const handleDeleteFase = (id) => {
@@ -58,7 +63,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
         toast.success("Fase dihapus.");
       } catch (err) {
         console.error(err);
-        toast.error("Gagal menghapus Fase!");
+        toast.error(err.message || "Gagal menghapus Fase!");
       }
     });
   };
@@ -78,6 +83,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   };
   const handleSaveSub = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       if (isEditSub) {
         await updateItem("subPekerjaan", subForm.id, subForm);
@@ -88,7 +94,9 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
       setShowSubModal(false);
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan Sub-pekerjaan!");
+      toast.error(err.message || "Gagal menyimpan Sub-pekerjaan!");
+    } finally {
+      setIsSaving(false);
     }
   };
   const handleDeleteSub = (id) => {
@@ -99,7 +107,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
         toast.success("Sub-pekerjaan dihapus.");
       } catch (err) {
         console.error(err);
-        toast.error("Gagal menghapus Sub!");
+        toast.error(err.message || "Gagal menghapus Sub!");
       }
     });
   };
@@ -119,6 +127,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   };
   const handleSave = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     const data = { 
         subPekerjaanId: form.subPekerjaanId, 
         tipe: form.tipe, 
@@ -139,7 +148,9 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
       setShowModal(false);
     } catch (err) {
       console.error(err);
-      alert("Gagal menyimpan Item RAB!");
+      toast.error(err.message || "Gagal menyimpan Item RAB!");
+    } finally {
+      setIsSaving(false);
     }
   };
   const handleDelete = (id) => {
@@ -150,7 +161,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
         toast.success("Item RAB dihapus.");
       } catch (err) {
         console.error(err);
-        toast.error("Gagal menghapus Item!");
+        toast.error(err.message || "Gagal menghapus Item!");
       }
     });
   };
@@ -200,28 +211,6 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
 
   return (
     <section className="tab-panel active printable-area" style={{ animation: 'fadeIn 0.3s ease' }}>
-      
-      {/* WIDGET KLASIFIKASI */}
-      <div className="kpi-grid non-printable" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '24px' }}>
-        {KLASIFIKASI_DATA.map(klas => {
-            const klasFases = projects.filter(p => p.klasifikasi === klas.id);
-            const totalSubs = klasFases.reduce((sum, f) => sum + filteredSubs(f.id).length, 0);
-            
-            return (
-                <div key={klas.id} className="kpi-card" style={{ borderTop: `4px solid ${klas.color}` }}>
-                    <div className="kpi-info" style={{ width: '100%' }}>
-                        <span className="kpi-label" style={{ color: klas.color, fontWeight: 'bold' }}>{klas.id}</span>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px' }}>
-                            <div>
-                                <h3 className="kpi-value" style={{ fontSize: '1.5rem' }}>{klasFases.length} Fase</h3>
-                                <span className="kpi-trend" style={{ color: "var(--text-secondary)" }}>{totalSubs} Sub-Pekerjaan</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        })}
-      </div>
 
       <div className="glass-card">
         <div className="card-header-action non-printable" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
@@ -301,7 +290,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                       </tr>
 
                       {isKlasExpanded && klasProjects.map(fase => {
-                        const isFaseExpanded = searchTerm ? true : expandedFases[fase.id] !== false; // default expanded
+                        const isFaseExpanded = searchTerm ? true : expandedFases[fase.id] === true; // default collapsed
                         let subs = filteredSubs(fase.id);
                         if (searchTerm) subs = subs.filter(sub => isSubMatch(sub, filteredRabs(sub.id)));
                         const hasManualBobot = fase.bobotManual !== undefined && fase.bobotManual !== "" && fase.bobotManual !== null;
@@ -350,7 +339,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                             )}
 
                             {isFaseExpanded && subs.map(sub => {
-                              const isSubExpanded = searchTerm ? true : expandedSubs[sub.id] !== false; // default expanded
+                              const isSubExpanded = searchTerm ? true : expandedSubs[sub.id] === true; // default collapsed
                               let items = filteredRabs(sub.id);
                               if (searchTerm && !matchSearch(sub.nama)) {
                                   items = items.filter(isItemMatch);
@@ -476,8 +465,10 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowFaseModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Simpan Fase</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowFaseModal(false)} disabled={isSaving}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                   {isSaving ? "Menyimpan..." : "Simpan Fase"}
+                </button>
               </div>
             </form>
           </div>
@@ -513,8 +504,10 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                 <input type="number" step="0.1" min="0" max="100" value={subForm.bobotManual} onChange={(e) => setSubForm({...subForm, bobotManual: e.target.value})} placeholder="Kosongkan untuk bagi rata otomatis" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowSubModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Simpan Sub-Pekerjaan</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowSubModal(false)} disabled={isSaving}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                   {isSaving ? "Menyimpan..." : "Simpan Sub-Pekerjaan"}
+                </button>
               </div>
             </form>
           </div>
@@ -573,8 +566,10 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                 <input type="number" step="0.1" min="0" max="100" value={form.bobotManual} onChange={(e) => setForm({...form, bobotManual: e.target.value})} placeholder="Kosongkan untuk bagi rata otomatis" />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Simpan Item</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={isSaving}>Batal</button>
+                <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                    {isSaving ? "Menyimpan..." : "Simpan Item"}
+                </button>
               </div>
             </form>
           </div>
