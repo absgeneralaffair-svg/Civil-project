@@ -1,0 +1,529 @@
+"use client";
+import { FileSpreadsheet, ChevronDown, ChevronRight, Edit, Printer, Briefcase, Image as ImageIcon, Settings2, Search } from "lucide-react";
+import React, { useState } from "react";
+import { updateItem } from "@/lib/db";
+
+function analyzeDateSchedule(jadwalMulai, jadwalSelesai, aktualMulai, aktualSelesai, progress) {
+    if (!jadwalMulai || !jadwalSelesai) return { status: '<span class="badge" style="background:#555">Belum di-set</span>', selisih: 0, notice: '', targetHari: 0, aktualHari: 0 };
+    
+    const jMulai = new Date(jadwalMulai);
+    const jSelesai = new Date(jadwalSelesai);
+    const targetHari = Math.ceil((jSelesai - jMulai) / (1000 * 60 * 60 * 24)) + 1;
+    
+    let aMulai = aktualMulai ? new Date(aktualMulai) : null;
+    let aSelesai = aktualSelesai ? new Date(aktualSelesai) : null;
+    
+    if (!aMulai && new Date() > jMulai) {
+        return { status: '<span class="badge" style="background:var(--danger-color)">Belum Mulai (Terlambat)</span>', selisih: 0, notice: 'Harusnya sudah mulai', targetHari, aktualHari: 0 };
+    }
+    if (!aMulai) return { status: '<span class="badge" style="background:#555">Belum Mulai</span>', selisih: 0, notice: '', targetHari, aktualHari: 0 };
+    
+    const endDate = aSelesai ? aSelesai : new Date();
+    let aktualHari = Math.ceil((endDate - aMulai) / (1000 * 60 * 60 * 24)) + 1;
+    if (aktualHari <= 0) aktualHari = 1;
+    
+    const selisihHari = targetHari - aktualHari; 
+
+    let notice = '';
+    if (aMulai > jMulai) notice = 'Mulai Terlambat';
+    
+    let status = '';
+    if (progress >= 100 && selisihHari >= 0) {
+        status = '<span class="badge" style="background:var(--success-color)">Selesai (Sesuai)</span>';
+    } else if (progress >= 100 && selisihHari < 0) {
+        status = '<span class="badge" style="background:var(--warning-color)">Selesai (Terlambat)</span>';
+    } else if (progress < 100 && selisihHari >= 0) {
+        status = '<span class="badge" style="background:var(--primary-color)">Berjalan (Sesuai)</span>';
+    } else {
+        status = '<span class="badge" style="background:var(--warning-color)">Berjalan (Terlambat)</span>';
+    }
+
+    return { status, selisih: selisihHari, notice, targetHari, aktualHari };
+}
+
+const ProgressBar = ({ value, color = "var(--primary-color)", dynamicColor = false }) => {
+  let finalColor = color;
+  const numValue = Number(value || 0);
+  if (dynamicColor) {
+     if (numValue < 40) finalColor = "var(--accent-red, #ef4444)";
+     else if (numValue < 75) finalColor = "var(--accent-orange, #f59e0b)";
+     else finalColor = "var(--accent-green, #10b981)";
+  }
+
+  return (
+    <div style={{ width: "100%", background: "rgba(0,0,0,0.3)", borderRadius: "12px", height: "22px", position: "relative", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
+      <div style={{ 
+          width: `${numValue}%`, 
+          background: finalColor,
+          height: "100%", 
+          transition: "width 0.5s ease",
+          boxShadow: `0 0 10px ${finalColor}`
+      }}></div>
+      <span style={{ position: "absolute", width: "100%", textAlign: "center", top: "3px", left: 0, fontSize: "0.75rem", color: "#fff", fontWeight: "bold", textShadow: "1px 1px 3px rgba(0,0,0,0.9)" }}>
+        {numValue.toFixed(1)}%
+      </span>
+    </div>
+  );
+};
+
+export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refreshData, saveData, allData }) {
+  const [expandedFases, setExpandedFases] = useState({});
+  const [expandedSubs, setExpandedSubs] = useState({});
+  const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": true, "Maintenance": true, "Pekerjaan Lain-lain": true });
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // States for ITEM Modal
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [itemForm, setItemForm] = useState({ id: "", target: 0, progres: 0, aktualMulai: "", aktualSelesai: "", kendala: "" });
+
+  // States for FASE Update Modal (Manual Progress)
+  const [showFaseUpdateModal, setShowFaseUpdateModal] = useState(false);
+  const [faseUpdateForm, setFaseUpdateForm] = useState({ id: "", progresManual: "" });
+
+  // States for SUB Update Modal (Manual Progress)
+  const [showSubUpdateModal, setShowSubUpdateModal] = useState(false);
+  const [subUpdateForm, setSubUpdateForm] = useState({ id: "", progresManual: "" });
+
+  const toggleFase = (id) => setExpandedFases(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleSub = (id) => setExpandedSubs(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleKlasifikasi = (id) => setExpandedKlasifikasi(prev => ({ ...prev, [id]: !prev[id] }));
+
+  // Handlers for Item
+  const handleOpenItemModal = (item) => {
+    setItemForm({ id: item.id, target: item.target || 0, progres: item.progres || 0, aktualMulai: item.aktualMulai || "", aktualSelesai: item.aktualSelesai || "", kendala: item.kendala || "" });
+    setShowItemModal(true);
+  };
+  const handleSaveItem = async (e) => {
+    e.preventDefault();
+    try {
+      await updateItem("rab", itemForm.id, { 
+        target: Number(itemForm.target), 
+        progres: Number(itemForm.progres), 
+        aktualMulai: itemForm.aktualMulai, 
+        aktualSelesai: itemForm.aktualSelesai, 
+        kendala: itemForm.kendala 
+      });
+      saveData();
+      setShowItemModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengupdate progres Item!");
+    }
+  };
+
+  // Handlers for Fase Update
+  const handleOpenFaseUpdate = (item) => {
+    setFaseUpdateForm({ id: item.id, progresManual: item.progresManual ?? "" });
+    setShowFaseUpdateModal(true);
+  };
+  const handleSaveFaseUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await updateItem("fases", faseUpdateForm.id, { progresManual: faseUpdateForm.progresManual });
+      saveData();
+      setShowFaseUpdateModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengupdate progres manual Kategori!");
+    }
+  };
+
+  // Handlers for Sub Update
+  const handleOpenSubUpdate = (item) => {
+    setSubUpdateForm({ id: item.id, progresManual: item.progresManual ?? "" });
+    setShowSubUpdateModal(true);
+  };
+  const handleSaveSubUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await updateItem("subPekerjaan", subUpdateForm.id, { progresManual: subUpdateForm.progresManual });
+      saveData();
+      setShowSubUpdateModal(false);
+    } catch (err) {
+      console.error(err);
+      alert("Gagal mengupdate progres manual Sub-Pekerjaan!");
+    }
+  };
+
+  const filteredSubs = (faseId) => subPekerjaan.filter(s => s.faseId === faseId);
+  const filteredRabs = (subId) => rabs.filter(r => r.subPekerjaanId === subId);
+
+  // Search logic
+  const lowerSearch = searchTerm.toLowerCase();
+  const matchSearch = (name) => name?.toLowerCase().includes(lowerSearch);
+  const isItemMatch = (item) => matchSearch(item.nama);
+  const isSubMatch = (sub, items) => matchSearch(sub.nama) || items.some(isItemMatch);
+  const isFaseMatch = (fase, subs) => matchSearch(fase.nama) || subs.some(sub => isSubMatch(sub, filteredRabs(sub.id)));
+
+  const exportToExcel = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Kategori/Pekerjaan/Item,Bobot (%),Jadwal,Target (%),Realisasi (%),Kendala\n";
+    projects.forEach(fase => {
+      csvContent += `"${fase.nama}","${Number(fase.bobot || 0).toFixed(1)}","${fase.mulai} s.d ${fase.selesai}","${fase.target}","${fase.progres}",""\n`;
+      const subs = filteredSubs(fase.id);
+      subs.forEach(sub => {
+        csvContent += `"- ${sub.nama}","${Number(sub.bobot || 0).toFixed(1)}","","${sub.target}","${sub.progres}",""\n`;
+        const items = filteredRabs(sub.id);
+        items.forEach(item => {
+          csvContent += `"-- ${item.nama}","${Number(item.bobot || 0).toFixed(1)}","${item.aktualMulai || ''} s.d ${item.aktualSelesai || ''}","${item.target}","${item.progres}","${item.kendala || ''}"\n`;
+        });
+      });
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "Progres_Project.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToPDF = () => {
+    window.print();
+  };
+
+  const KLASIFIKASI_DATA = [
+    { id: "Project Baru", color: "var(--accent-blue)" },
+    { id: "Maintenance", color: "var(--accent-green)" },
+    { id: "Pekerjaan Lain-lain", color: "var(--text-muted)" }
+  ];
+
+  const getKlasifikasiProgress = (klasId) => {
+    const klasFases = projects.filter(p => p.klasifikasi === klasId);
+    if (klasFases.length === 0) return { avgTarget: 0, avgProgres: 0, count: 0 };
+    const totalTarget = klasFases.reduce((sum, f) => sum + (f.target || 0), 0);
+    const totalProgres = klasFases.reduce((sum, f) => sum + (f.progres || 0), 0);
+    return {
+        avgTarget: (totalTarget / klasFases.length).toFixed(1),
+        avgProgres: (totalProgres / klasFases.length).toFixed(1),
+        count: klasFases.length
+    };
+  };
+
+  return (
+    <section className="tab-panel active printable-area" style={{ animation: 'fadeIn 0.3s ease' }}>
+      
+      {/* WIDGET KLASIFIKASI */}
+      <div className="kpi-grid non-printable" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '24px' }}>
+        {KLASIFIKASI_DATA.map(klas => {
+            const stats = getKlasifikasiProgress(klas.id);
+            return (
+                <div key={klas.id} className="kpi-card" style={{ borderTop: `4px solid ${klas.color}` }}>
+                    <div className="kpi-info" style={{ width: '100%' }}>
+                        <span className="kpi-label" style={{ color: klas.color, fontWeight: 'bold' }}>{klas.id}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px' }}>
+                            <div>
+                                <h3 className="kpi-value" style={{ fontSize: '1.5rem' }}>{stats.avgProgres}%</h3>
+                                <span className="kpi-trend" style={{ color: "var(--text-secondary)" }}>{stats.count} Fase Proyek</span>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <span className="kpi-trend">Target: {stats.avgTarget}%</span>
+                            </div>
+                        </div>
+                        <div style={{ marginTop: '12px' }}>
+                            <ProgressBar value={stats.avgProgres} color={klas.color} />
+                        </div>
+                    </div>
+                </div>
+            );
+        })}
+      </div>
+
+      <div className="glass-card">
+        <div className="card-header-action non-printable" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <h4 className="card-title">Progres Fisik & Jadwal</h4>
+            <p className="card-subtitle">Manajemen Pembaruan Progres (Pembuatan Sub/Fase dipindah ke menu RAB)</p>
+          </div>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", background: "rgba(0,0,0,0.3)", padding: "6px 12px", borderRadius: "6px", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <Search size={16} color="var(--text-muted)" style={{ marginRight: '8px' }} />
+              <input 
+                 type="text" 
+                 placeholder="Cari Fase/Pekerjaan..." 
+                 value={searchTerm} 
+                 onChange={(e) => setSearchTerm(e.target.value)} 
+                 style={{ background: 'transparent', border: 'none', color: '#fff', outline: 'none', width: '200px' }} 
+              />
+            </div>
+            <button className="btn btn-secondary" onClick={exportToExcel} title="Export data ke Excel (CSV)">
+              <FileSpreadsheet size={16} style={{ marginRight: '8px' }} /> Export Excel
+            </button>
+            <button className="btn btn-secondary" onClick={exportToPDF} title="Cetak / Export Laporan ke PDF">
+              <Printer size={16} style={{ marginRight: '8px' }} /> Cetak PDF
+            </button>
+          </div>
+        </div>
+
+        <div className="printable-header" style={{ display: 'none', marginBottom: '20px' }}>
+          <h2>Laporan Progres Fisik Pekerjaan</h2>
+          <p>Dicetak pada: {new Date().toLocaleDateString('id-ID')}</p>
+        </div>
+
+        <div className="table-container" style={{ marginTop: "20px", overflowX: "auto" }}>
+          <table className="table" style={{ minWidth: "900px", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "rgba(255,255,255,0.05)" }}>
+                <th className="non-printable" style={{ width: "40px" }}></th>
+                <th>Kategori Pekerjaan</th>
+                <th style={{ width: "10%" }}>Bobot</th>
+                <th>Jadwal / Status</th>
+                <th style={{ width: "15%" }}>Target Progres</th>
+                <th style={{ width: "15%" }}>Realisasi Progres</th>
+                <th>Kendala</th>
+                <th className="non-printable">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>Memuat data proyek...</td></tr>
+              ) : projects.length === 0 ? (
+                <tr><td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>Belum ada data pekerjaan.</td></tr>
+              ) : (
+                KLASIFIKASI_DATA.map(klas => {
+                  const klasProjects = projects.filter(p => p.klasifikasi === klas.id).filter(fase => {
+                     if (!searchTerm) return true;
+                     const subs = filteredSubs(fase.id);
+                     return isFaseMatch(fase, subs);
+                  });
+                  if (klasProjects.length === 0) return null;
+                  const isKlasExpanded = searchTerm ? true : expandedKlasifikasi[klas.id];
+                  
+                  return (
+                    <React.Fragment key={klas.id}>
+                        {/* KLASIFIKASI HEADER ROW */}
+                        <tr onClick={() => toggleKlasifikasi(klas.id)} style={{ cursor: "pointer", background: "#10162a", borderBottom: `2px solid ${klas.color}`, position: "sticky", top: "45px", zIndex: 9 }} className="row-hover">
+                            <td className="non-printable">
+                                <button className="btn-expand" style={{ background: "none", border: "none", color: klas.color, padding: "4px", pointerEvents: "none" }}>
+                                    {isKlasExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                </button>
+                            </td>
+                            <td colSpan="7" style={{ fontWeight: 800, color: klas.color, fontSize: "1.05rem", textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                <Briefcase size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }}/> {klas.id}
+                            </td>
+                        </tr>
+
+                        {isKlasExpanded && klasProjects.map(project => {
+                            let subs = filteredSubs(project.id);
+                            if (searchTerm) subs = subs.filter(sub => isSubMatch(sub, filteredRabs(sub.id)));
+                            const isFaseExpanded = searchTerm ? true : expandedFases[project.id];
+                            const schedule = analyzeDateSchedule(project.mulai, project.selesai, null, null, project.progres);
+                            const hasManualProgres = project.progresManual !== undefined && project.progresManual !== "" && project.progresManual !== null;
+
+                            return (
+                                <React.Fragment key={project.id}>
+                                <tr onClick={() => toggleFase(project.id)} style={{ cursor: "pointer", background: "rgba(255,255,255,0.08)", borderBottom: "1px solid rgba(255,255,255,0.1)" }} className="row-hover">
+                                    <td className="non-printable">
+                                    <button className="btn-expand" style={{ background: "none", border: "none", color: "#fff", padding: "4px", pointerEvents: "none" }}>
+                                        {isFaseExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                    </button>
+                                    </td>
+                                    <td style={{ fontWeight: 700, color: "var(--primary-color)" }}>
+                                      {project.nama}
+                                      {project.linkGambar && (
+                                          <a href={project.linkGambar} target="_blank" rel="noopener noreferrer" className="btn btn-small non-printable" style={{ marginLeft: '10px', display: 'inline-flex', padding: '2px 6px', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent-blue)', border: '1px solid rgba(56, 189, 248, 0.2)' }} onClick={(e) => e.stopPropagation()}>
+                                            <ImageIcon size={12} style={{ marginRight: '4px' }}/> Gambar
+                                          </a>
+                                      )}
+                                    </td>
+                                    <td style={{ fontWeight: "bold" }}>{Number(project.bobot || 0).toFixed(1)}%</td>
+                                    <td>
+                                    <div style={{ fontSize: "0.8rem", marginBottom: "4px" }}>{project.mulai || '-'} s.d {project.selesai || '-'}</div>
+                                    <div dangerouslySetInnerHTML={{ __html: schedule.status }}></div>
+                                    </td>
+                                    <td><ProgressBar value={project.target} color="var(--primary-color)" /></td>
+                                    <td>
+                                      <ProgressBar value={project.progres} dynamicColor={true} />
+                                      {hasManualProgres && <span style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual Input)</span>}
+                                    </td>
+                                    <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
+                                    <td className="non-printable">
+                                      <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenFaseUpdate(project); }} title="Update Progres Manual">
+                                          <Settings2 size={12} style={{ marginRight: "4px" }}/> Update
+                                        </button>
+                                      </div>
+                                    </td>
+                                </tr>
+                                
+                                {isFaseExpanded && subs.map(sub => {
+                                    let items = filteredRabs(sub.id);
+                                    if (searchTerm && !matchSearch(sub.nama)) {
+                                        items = items.filter(isItemMatch);
+                                    }
+                                    const isSubExpanded = searchTerm ? true : expandedSubs[sub.id];
+                                    const hasManualSubProgres = sub.progresManual !== undefined && sub.progresManual !== "" && sub.progresManual !== null;
+
+                                    return (
+                                    <React.Fragment key={sub.id}>
+                                        <tr onClick={() => toggleSub(sub.id)} style={{ cursor: "pointer", background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.05)" }} className="row-hover">
+                                        <td className="non-printable"></td>
+                                        <td style={{ paddingLeft: "20px" }}>
+                                            <button className="btn-expand non-printable" style={{ background: "none", border: "none", color: "var(--text-secondary)", marginRight: "8px", pointerEvents: "none" }}>
+                                            {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                            </button>
+                                            ↳ {sub.nama}
+                                        </td>
+                                        <td>{Number(sub.bobot || 0).toFixed(1)}%</td>
+                                        <td style={{ fontSize: "0.8rem" }}>-</td>
+                                        <td><ProgressBar value={sub.target} color="var(--primary-color)" /></td>
+                                        <td>
+                                          <ProgressBar value={sub.progres} dynamicColor={true} />
+                                          {hasManualSubProgres && <span style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual Input)</span>}
+                                        </td>
+                                        <td>-</td>
+                                        <td className="non-printable">
+                                          <div style={{ display: 'flex', gap: '6px' }}>
+                                            <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenSubUpdate(sub); }} title="Update Progres Manual">
+                                              <Settings2 size={12} style={{ marginRight: "4px" }}/> Update
+                                            </button>
+                                          </div>
+                                        </td>
+                                        </tr>
+
+                                        {isSubExpanded && items.map(item => {
+                                        const itemSchedule = analyzeDateSchedule(project.mulai, project.selesai, item.aktualMulai, item.aktualSelesai, item.progres);
+                                        
+                                        return (
+                                            <tr key={item.id} style={{ background: "rgba(0,0,0,0.2)", borderBottom: "1px dashed rgba(255,255,255,0.05)" }}>
+                                            <td className="non-printable"></td>
+                                            <td style={{ paddingLeft: "50px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>• {item.nama}</td>
+                                            <td style={{ fontSize: "0.85rem" }}>{Number(item.bobot || 0).toFixed(1)}%</td>
+                                            <td style={{ fontSize: "0.8rem" }}>
+                                                {item.aktualMulai ? (
+                                                <div style={{ marginBottom: "4px" }}>
+                                                    Mulai: <span style={{ color: "var(--text-primary)" }}>{item.aktualMulai}</span><br/>
+                                                    Selesai: <span style={{ color: "var(--text-primary)" }}>{item.aktualSelesai || '-'}</span>
+                                                </div>
+                                                ) : (
+                                                <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>Belum di-set</span>
+                                                )}
+                                                <div dangerouslySetInnerHTML={{ __html: itemSchedule.status }}></div>
+                                            </td>
+                                            <td><ProgressBar value={item.target} color="var(--primary-color)" /></td>
+                                            <td><ProgressBar value={item.progres} dynamicColor={true} /></td>
+                                            <td style={{ fontSize: "0.8rem", color: "var(--warning-color)" }}>{item.kendala || '-'}</td>
+                                            <td className="non-printable">
+                                                <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenItemModal(item); }}>
+                                                <Edit size={12} style={{ marginRight: "4px" }}/> Update
+                                                </button>
+                                            </td>
+                                            </tr>
+                                        );
+                                        })}
+                                    </React.Fragment>
+                                    );
+                                })}
+                                </React.Fragment>
+                            );
+                        })}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* MODAL UPDATE ITEM PROGRES */}
+      {showItemModal && (
+        <div className="modal active non-printable" style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Update Progres & Aktual</h3>
+              <button type="button" className="btn-close" onClick={() => setShowItemModal(false)}>&times;</button>
+            </div>
+            <form className="modal-body" onSubmit={handleSaveItem}>
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Target (%)</label>
+                  <input type="number" step="0.1" required min="0" max="100" value={itemForm.target} onChange={(e) => setItemForm({...itemForm, target: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Realisasi (%)</label>
+                  <input type="number" step="0.1" required min="0" max="100" value={itemForm.progres} onChange={(e) => setItemForm({...itemForm, progres: e.target.value})} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Aktual Mulai</label>
+                  <input type="date" value={itemForm.aktualMulai} onChange={(e) => setItemForm({...itemForm, aktualMulai: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Aktual Selesai</label>
+                  <input type="date" value={itemForm.aktualSelesai} onChange={(e) => setItemForm({...itemForm, aktualSelesai: e.target.value})} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Kendala / Catatan</label>
+                <textarea rows="3" value={itemForm.kendala} onChange={(e) => setItemForm({...itemForm, kendala: e.target.value})} placeholder="Tuliskan kendala di lapangan jika ada..."></textarea>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowItemModal(false)}>Batal</button>
+                <button type="submit" className="btn btn-primary">Simpan Progress</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL UPDATE FASE (MANUAL PROGRES) */}
+      {showFaseUpdateModal && (
+        <div className="modal active non-printable" style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Input Realisasi Progres Fase</h3>
+              <button type="button" className="btn-close" onClick={() => setShowFaseUpdateModal(false)}>&times;</button>
+            </div>
+            <form className="modal-body" onSubmit={handleSaveFaseUpdate}>
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label>Realisasi Progres Manual (%)</label>
+                <input type="number" step="0.1" min="0" max="100" value={faseUpdateForm.progresManual} onChange={(e) => setFaseUpdateForm({...faseUpdateForm, progresManual: e.target.value})} placeholder="Kosongkan untuk otomatis EVM" />
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Angka ini akan meng-override perhitungan otomatis (EVM) dari sub-pekerjaan di bawahnya.</small>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowFaseUpdateModal(false)}>Batal</button>
+                <button type="submit" className="btn btn-primary">Simpan Progres</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL UPDATE SUB-PEKERJAAN (MANUAL PROGRES) */}
+      {showSubUpdateModal && (
+        <div className="modal active non-printable" style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-card" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Input Realisasi Progres Sub-Pekerjaan</h3>
+              <button type="button" className="btn-close" onClick={() => setShowSubUpdateModal(false)}>&times;</button>
+            </div>
+            <form className="modal-body" onSubmit={handleSaveSubUpdate}>
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label>Realisasi Progres Manual (%)</label>
+                <input type="number" step="0.1" min="0" max="100" value={subUpdateForm.progresManual} onChange={(e) => setSubUpdateForm({...subUpdateForm, progresManual: e.target.value})} placeholder="Kosongkan untuk otomatis EVM" />
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Angka ini akan meng-override perhitungan otomatis (EVM) dari rincian item di bawahnya.</small>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowSubUpdateModal(false)}>Batal</button>
+                <button type="submit" className="btn btn-primary">Simpan Progres</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .row-hover:hover {
+            background-color: rgba(255,255,255,0.15) !important;
+            transition: background-color 0.2s ease;
+        }
+      `}} />
+    </section>
+  );
+}
