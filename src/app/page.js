@@ -311,8 +311,8 @@ export default function DashboardApp() {
         
         <div className="tab-content-wrapper">
           {activeTab === "dashboard" && <DashboardTab projects={allData.fases} subPekerjaan={allData.subPekerjaan} rabs={allData.rab} materials={allData.stok} penggunaanLogs={allData.penggunaan} loading={loading} refreshData={fetchData} selectedYear={selectedYear} />}
-          {activeTab === "progres" && <ProgresTab projects={projects} subPekerjaan={subPekerjaan} rabs={rabs} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
-          {activeTab === "rab" && <RabTab rabs={rabs} projects={projects} subPekerjaan={subPekerjaan} materials={materials} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
+          {activeTab === "progres" && <ProgresTab projects={allData.fases} subPekerjaan={allData.subPekerjaan} rabs={allData.rab} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
+          {activeTab === "rab" && <RabTab rabs={allData.rab} projects={allData.fases} subPekerjaan={allData.subPekerjaan} materials={materials} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
           {activeTab === "order" && <OrderTab orders={orders} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
           {activeTab === "penggunaan" && <PenggunaanTab logs={penggunaanLogs} materials={materials} projects={projects} subPekerjaan={subPekerjaan} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
           {activeTab === "masuk" && <BarangMasukTab masukLogs={barangMasuk} materials={materials} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
