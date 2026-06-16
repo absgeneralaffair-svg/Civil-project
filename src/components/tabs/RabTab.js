@@ -18,7 +18,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   // Modals for Fase
   const [showFaseModal, setShowFaseModal] = useState(false);
   const [isEditFase, setIsEditFase] = useState(false);
-  const [faseForm, setFaseForm] = useState({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", linkGambar: "", bobotManual: "" });
+  const [faseForm, setFaseForm] = useState({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", linkGambar: "", bobotManual: "" });
 
   // Modals for Sub
   const [showSubModal, setShowSubModal] = useState(false);
@@ -33,8 +33,8 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
 
   // --- FASE CRUD ---
   const handleOpenFaseModal = (item = null) => {
-    if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "" }); setIsEditFase(true); }
-    else { setFaseForm({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", linkGambar: "", bobotManual: "" }); setIsEditFase(false); }
+    if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "", aktualMulai: item.aktualMulai || "", aktualSelesai: item.aktualSelesai || "" }); setIsEditFase(true); }
+    else { setFaseForm({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", linkGambar: "", bobotManual: "" }); setIsEditFase(false); }
     setShowFaseModal(true);
   };
   const handleSaveFase = async (e) => {
@@ -451,6 +451,16 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Jadwal Selesai</label>
                   <input type="date" required value={faseForm.selesai} onChange={(e) => setFaseForm({...faseForm, selesai: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Aktual Mulai</label>
+                  <input type="date" value={faseForm.aktualMulai || ""} onChange={(e) => setFaseForm({...faseForm, aktualMulai: e.target.value})} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Aktual Selesai</label>
+                  <input type="date" value={faseForm.aktualSelesai || ""} onChange={(e) => setFaseForm({...faseForm, aktualSelesai: e.target.value})} />
                 </div>
               </div>
               <div className="form-group" style={{ marginTop: '10px' }}>

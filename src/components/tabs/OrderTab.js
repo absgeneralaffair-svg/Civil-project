@@ -170,7 +170,20 @@ export default function OrderTab({ orders, loading, refreshData, saveData, allDa
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Part Number</label>
-                  <input type="text" value={form.partnumber} onChange={(e) => setForm({...form, partnumber: e.target.value})} placeholder="PN-001" />
+                  <input type="text" value={form.partnumber} onChange={(e) => {
+                    const val = e.target.value;
+                    const mat = (allData.stok || []).find(m => m.kode === val);
+                    if (mat) {
+                       setForm({...form, partnumber: val, nama: mat.nama, satuan: mat.satuan || form.satuan});
+                    } else {
+                       const pastOrder = orders.find(o => o.partnumber === val && o.nama);
+                       if (pastOrder) {
+                           setForm({...form, partnumber: val, nama: pastOrder.nama, satuan: pastOrder.satuan || form.satuan});
+                       } else {
+                           setForm({...form, partnumber: val});
+                       }
+                    }
+                  }} placeholder="PN-001" />
                 </div>
               </div>
               <div className="form-group">

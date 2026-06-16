@@ -229,7 +229,15 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
                   value={form.materialNameInput || ""} 
                   onChange={(e) => {
                     const val = e.target.value;
-                    const mat = materials.find(m => `[${m.kode}] ${m.nama}` === val);
+                    let mat = materials.find(m => `[${m.kode}] ${m.nama}` === val);
+                    let newVal = val;
+                    if (!mat) {
+                        const matByKode = materials.find(m => m.kode === val);
+                        if (matByKode) {
+                            mat = matByKode;
+                            newVal = `[${mat.kode}] ${mat.nama}`;
+                        }
+                    }
                     let newMr = "";
                     let newPr = "";
                     let autoJumlah = 0;
@@ -243,7 +251,7 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
                             autoKeterangan = matchingOrders[0].keperluan || "";
                         }
                     }
-                    setForm({...form, materialNameInput: val, materialId: mat ? mat.id : "", mr: newMr, pr: newPr, jumlah: autoJumlah || form.jumlah, keterangan: autoKeterangan || form.keterangan});
+                    setForm({...form, materialNameInput: newVal, materialId: mat ? mat.id : "", mr: newMr, pr: newPr, jumlah: autoJumlah || form.jumlah, keterangan: autoKeterangan || form.keterangan});
                   }} 
                   placeholder="Ketik nama atau kode material..." 
                 />

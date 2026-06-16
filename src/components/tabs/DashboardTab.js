@@ -91,7 +91,7 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
   let notStartedCount = 0;
 
   const analyzedProjects = filteredProjects.map(p => {
-      const schedule = analyzeDateSchedule(p.mulai, p.selesai, null, null, p.progres); // using null for actual since fase doesn't have it directly or we use logic
+      const schedule = analyzeDateSchedule(p.mulai, p.selesai, p.aktualMulai, p.aktualSelesai, p.progres);
       if (schedule.statusText.includes("Terlambat")) delayedCount++;
       if (schedule.statusText.includes("Selesai")) completedCount++;
       if (schedule.statusText.includes("Berjalan")) ongoingCount++;
