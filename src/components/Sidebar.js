@@ -74,8 +74,8 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout }) {
           <div className="copyright-text">
             &copy; 2026 HRGA Management
           </div>
-          <div className="version-badge" title="Pembaruan Sistem v2.2.0">
-            <span className="pulse-dot"></span> v2.2.0
+          <div className="version-badge" title="Pembaruan Sistem v2.2.1">
+            <span className="pulse-dot"></span> v2.2.1
           </div>
         </div>
       </div>

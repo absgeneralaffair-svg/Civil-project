@@ -112,7 +112,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   // States for FASE Update Modal (Manual Progress)
   const [showFaseUpdateModal, setShowFaseUpdateModal] = useState(false);
-  const [faseUpdateForm, setFaseUpdateForm] = useState({ id: "", progresManual: "" });
+  const [faseUpdateForm, setFaseUpdateForm] = useState({ id: "", progresManual: "", kendala: "" });
 
   // States for SUB Update Modal (Manual Progress)
   const [showSubUpdateModal, setShowSubUpdateModal] = useState(false);
@@ -147,13 +147,13 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   // Handlers for Fase Update
   const handleOpenFaseUpdate = (item) => {
-    setFaseUpdateForm({ id: item.id, progresManual: item.progresManual ?? "" });
+    setFaseUpdateForm({ id: item.id, progresManual: item.progresManual ?? "", kendala: item.kendala || "" });
     setShowFaseUpdateModal(true);
   };
   const handleSaveFaseUpdate = async (e) => {
     e.preventDefault();
     try {
-      await updateItem("fases", faseUpdateForm.id, { progresManual: faseUpdateForm.progresManual });
+      await updateItem("fases", faseUpdateForm.id, { progresManual: faseUpdateForm.progresManual, kendala: faseUpdateForm.kendala });
       saveData();
       setShowFaseUpdateModal(false);
     } catch (err) {
@@ -193,7 +193,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += "Kategori/Pekerjaan/Item,Bobot (%),Jadwal,Target (%),Realisasi (%),Kendala\n";
     projects.forEach(fase => {
-      csvContent += `"${fase.nama}","${Number(fase.bobot || 0).toFixed(1)}","${fase.mulai} s.d ${fase.selesai}","${fase.target}","${fase.progres}",""\n`;
+      csvContent += `"${fase.nama}","${Number(fase.bobot || 0).toFixed(1)}","${fase.mulai} s.d ${fase.selesai}","${fase.target}","${fase.progres}","${fase.kendala || ''}"\n`;
       const subs = filteredSubs(fase.id);
       subs.forEach(sub => {
         csvContent += `"- ${sub.nama}","${Number(sub.bobot || 0).toFixed(1)}","","${sub.target}","${sub.progres}",""\n`;
@@ -305,6 +305,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
               <tr style={{ background: "rgba(255,255,255,0.05)" }}>
                 <th className="non-printable" style={{ width: "40px" }}></th>
                 <th>Kategori Pekerjaan</th>
+                <th>Gambar Kerja</th>
                 <th style={{ width: "10%" }}>Bobot</th>
                 <th>Jadwal / Status</th>
                 <th style={{ width: "15%" }}>Target Progres</th>
@@ -337,7 +338,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     {isKlasExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                 </button>
                             </td>
-                            <td colSpan="7" style={{ fontWeight: 800, color: klas.color, fontSize: "1.05rem", textTransform: 'uppercase', letterSpacing: '1px' }}>
+                            <td colSpan="8" style={{ fontWeight: 800, color: klas.color, fontSize: "1.05rem", textTransform: 'uppercase', letterSpacing: '1px' }}>
                                 <Briefcase size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }}/> {klas.id}
                             </td>
                         </tr>
@@ -359,16 +360,21 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     </td>
                                     <td style={{ fontWeight: 700, color: "var(--primary-color)" }}>
                                       <FolderOpen size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> {project.nama}
-                                      {project.gambarList && project.gambarList.length > 0 && (
-                                          <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
-                                            <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> {project.gambarList.length} Gambar
-                                          </span>
-                                      )}
-                                      {!project.gambarList && project.linkGambar && (
-                                          <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
-                                            <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> 1 Gambar
-                                          </span>
-                                      )}
+                                    </td>
+                                    <td>
+                                      {(() => {
+                                        const gambars = project.gambarList ? project.gambarList : (project.linkGambar ? [{judul: "Lampiran Utama", url: project.linkGambar}] : []);
+                                        if (gambars.length === 0) return <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>-</span>;
+                                        if (gambars.length === 1) return <a href={gambars[0].url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-orange)", textDecoration: "underline", fontSize: "0.85rem", fontWeight: "normal" }}>{gambars[0].judul || "Gambar 1"}</a>;
+                                        return (
+                                          <select style={{ background: "transparent", color: "var(--accent-orange)", border: "1px solid var(--accent-orange)", borderRadius: "4px", padding: "2px 4px", fontSize: "0.85rem", maxWidth: "140px", outline: "none", cursor: "pointer", fontWeight: "normal" }} onChange={(e) => { if(e.target.value) window.open(e.target.value, '_blank'); e.target.value = ''; }}>
+                                            <option value="" style={{ color: "#000" }}>{gambars.length} Gambar</option>
+                                            {gambars.map((g, idx) => (
+                                              <option key={idx} value={g.url} style={{ color: "#000" }}>{g.judul || `Gambar ${idx + 1}`}</option>
+                                            ))}
+                                          </select>
+                                        );
+                                      })()}
                                     </td>
                                     <td><PercentBadge value={project.bobot} type="bobot" /></td>
                                     <td>
@@ -380,7 +386,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                       <ProgressBar value={project.progres} dynamicColor={true} />
                                       {hasManualProgres && <span style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual Input)</span>}
                                     </td>
-                                    <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
+                                    <td style={{ fontSize: "0.8rem", color: "var(--warning-color)" }}>{project.kendala || '-'}</td>
                                     <td className="non-printable">
                                       <div style={{ display: 'flex', gap: '6px' }}>
                                         <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenRekapModal(project); }} title="Rekap Pemakaian Material Aktual" style={{ background: 'var(--accent-blue)', color: 'white', border: 'none', display: 'flex', alignItems: 'center' }}>
@@ -392,24 +398,6 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                       </div>
                                     </td>
                                 </tr>
-                                
-                                {isFaseExpanded && ((project.gambarList && project.gambarList.length > 0) || project.linkGambar) && (
-                                    <tr style={{ background: "rgba(255,255,255,0.02)" }} className="non-printable">
-                                        <td className="non-printable"></td>
-                                        <td colSpan="7">
-                                            <div style={{ padding: '10px 0', marginLeft: '20px', display: 'flex', gap: '15px', overflowX: 'auto' }}>
-                                                {(project.gambarList && project.gambarList.length > 0 ? project.gambarList : [{judul: "Lampiran Utama", url: project.linkGambar}]).map((gbr, idx) => (
-                                                    <div key={idx} style={{ textAlign: 'center', flexShrink: 0 }}>
-                                                        <a href={gbr.url} target="_blank" rel="noopener noreferrer">
-                                                            <img src={gbr.url} alt={gbr.judul} style={{ maxWidth: '180px', maxHeight: '120px', borderRadius: '8px', border: '1px solid var(--card-border)', objectFit: 'cover' }} />
-                                                        </a>
-                                                        <div style={{ fontSize: '0.8rem', marginTop: '5px', color: 'var(--text-secondary)' }}>{gbr.judul || `Gambar ${idx + 1}`}</div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
                                 
                                 {isFaseExpanded && subs.map(sub => {
                                     let items = filteredRabs(sub.id);
@@ -429,6 +417,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                             </button>
                                             <FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> {sub.nama}
                                         </td>
+                                        <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                         <td><PercentBadge value={sub.bobot} type="bobot" /></td>
                                         <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                         <td><ProgressBar value={sub.target} color="var(--primary-color)" /></td>
@@ -453,6 +442,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                             <tr key={item.id} style={{ background: "rgba(0,0,0,0.2)", borderBottom: "1px dashed rgba(255,255,255,0.05)" }}>
                                             <td className="non-printable"></td>
                                             <td style={{ paddingLeft: "50px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>• {item.nama}</td>
+                                            <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                             <td><PercentBadge value={item.bobot} type="bobot" /></td>
                                             <td style={{ fontSize: "0.8rem" }}>
                                                 {item.aktualMulai ? (
@@ -549,6 +539,11 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                 <label>Realisasi Progres Manual (%)</label>
                 <input type="number" step="0.1" min="0" max="100" value={faseUpdateForm.progresManual} onChange={(e) => setFaseUpdateForm({...faseUpdateForm, progresManual: e.target.value})} placeholder="Kosongkan untuk otomatis EVM" />
                 <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Angka ini akan meng-override perhitungan otomatis (EVM) dari sub-pekerjaan di bawahnya.</small>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label>Kendala / Catatan</label>
+                <textarea rows="3" value={faseUpdateForm.kendala} onChange={(e) => setFaseUpdateForm({...faseUpdateForm, kendala: e.target.value})} placeholder="Tuliskan kendala di lapangan untuk kategori ini jika ada..."></textarea>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>

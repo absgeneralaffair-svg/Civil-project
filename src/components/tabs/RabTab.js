@@ -42,10 +42,9 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // --- FASE CRUD ---
   const handleOpenFaseModal = (item = null) => {
-    if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "", aktualMulai: item.aktualMulai || "", aktualSelesai: item.aktualSelesai || "", gambarList: item.gambarList || (item.linkGambar ? [{judul: "Gambar Utama", url: item.linkGambar}] : []) }); setIsEditFase(true); }
-    else { setFaseForm({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", gambarList: [], bobotManual: "" }); setIsEditFase(false); }
+    if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "", aktualMulai: item.aktualMulai || "", aktualSelesai: item.aktualSelesai || "", gambarList: item.gambarList || (item.linkGambar ? [{judul: "Lampiran Utama", url: item.linkGambar}] : []), linkGambar: "" }); setIsEditFase(true); }
+    else { setFaseForm({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", gambarList: [], bobotManual: "", linkGambar: "" }); setIsEditFase(false); }
     setShowFaseModal(true);
   };
   const handleSaveFase = async (e) => {
@@ -347,22 +346,27 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                               </td>
                               <td style={{ fontWeight: 700, color: "var(--primary-color)" }}>
                                 <FolderOpen size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> {fase.nama}
-                                {fase.gambarList && fase.gambarList.length > 0 && (
-                                    <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
-                                      <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> {fase.gambarList.length} Gambar
-                                    </span>
-                                )}
-                                {!fase.gambarList && fase.linkGambar && (
-                                    <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
-                                      <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> 1 Gambar
-                                    </span>
-                                )}
                               </td>
                               <td style={{ fontWeight: 'bold' }}>
                                 <PercentBadge value={fase.bobot} type="bobot" />
                                 {hasManualBobot && <div style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual)</div>}
                               </td>
-                              <td colSpan="4"></td>
+                              <td colSpan="3"></td>
+                              <td>
+                                {(() => {
+                                  const gambars = fase.gambarList ? fase.gambarList : (fase.linkGambar ? [{judul: "Lampiran Utama", url: fase.linkGambar}] : []);
+                                  if (gambars.length === 0) return <span style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>-</span>;
+                                  if (gambars.length === 1) return <a href={gambars[0].url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-orange)", textDecoration: "underline", fontSize: "0.85rem", fontWeight: "normal" }}>{gambars[0].judul || "Gambar 1"}</a>;
+                                  return (
+                                    <select style={{ background: "transparent", color: "var(--accent-orange)", border: "1px solid var(--accent-orange)", borderRadius: "4px", padding: "2px 4px", fontSize: "0.85rem", maxWidth: "140px", outline: "none", cursor: "pointer", fontWeight: "normal" }} onChange={(e) => { if(e.target.value) window.open(e.target.value, '_blank'); e.target.value = ''; }}>
+                                      <option value="" style={{ color: "#000" }}>{gambars.length} Gambar</option>
+                                      {gambars.map((g, idx) => (
+                                        <option key={idx} value={g.url} style={{ color: "#000" }}>{g.judul || `Gambar ${idx + 1}`}</option>
+                                      ))}
+                                    </select>
+                                  );
+                                })()}
+                              </td>
                               <td className="non-printable">
                                 <div style={{ display: 'flex', gap: '6px' }}>
                                     <button className="btn btn-small btn-secondary" onClick={(e) => { e.stopPropagation(); handleOpenRekapModal(fase); }} title="Rekap Pemakaian Material Aktual"><ClipboardList size={12}/></button>
@@ -372,24 +376,6 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                                 </div>
                               </td>
                             </tr>
-
-                            {isFaseExpanded && ((fase.gambarList && fase.gambarList.length > 0) || fase.linkGambar) && (
-                                <tr style={{ background: "rgba(255,255,255,0.02)" }} className="non-printable">
-                                    <td className="non-printable"></td>
-                                    <td colSpan="7">
-                                        <div style={{ padding: '10px 0', marginLeft: '20px', display: 'flex', gap: '15px', overflowX: 'auto' }}>
-                                            {(fase.gambarList && fase.gambarList.length > 0 ? fase.gambarList : [{judul: "Lampiran Utama", url: fase.linkGambar}]).map((gbr, idx) => (
-                                                <div key={idx} style={{ textAlign: 'center', flexShrink: 0 }}>
-                                                    <a href={gbr.url} target="_blank" rel="noopener noreferrer">
-                                                        <img src={gbr.url} alt={gbr.judul} style={{ maxWidth: '180px', maxHeight: '120px', borderRadius: '8px', border: '1px solid var(--card-border)', objectFit: 'cover' }} />
-                                                    </a>
-                                                    <div style={{ fontSize: '0.8rem', marginTop: '5px', color: 'var(--text-secondary)' }}>{gbr.judul || `Gambar ${idx + 1}`}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
 
                             {isFaseExpanded && subs.map(sub => {
                               const isSubExpanded = searchTerm ? true : expandedSubs[sub.id] === true; // default collapsed
