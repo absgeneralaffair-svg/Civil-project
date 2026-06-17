@@ -131,8 +131,9 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
       <div className="kpi-grid non-printable" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginBottom: '24px' }}>
         {KLASIFIKASI_DATA.map(klas => {
             const stats = getKlasifikasiProgress(klas.id);
+            const klasData = filteredProjects.filter(p => p.klasifikasi === klas.id).map(p => ({ ...p, schedule: analyzeDateSchedule(p.mulai, p.selesai, p.aktualMulai, p.aktualSelesai, p.progres) }));
             return (
-                <div key={klas.id} className="kpi-card" style={{ borderTop: `4px solid ${klas.color}` }}>
+                <div key={klas.id} className="kpi-card" onClick={() => setModalData({ title: `Klasifikasi: ${klas.id}`, data: klasData })} style={{ borderTop: `4px solid ${klas.color}`, cursor: 'pointer', transition: 'transform 0.2s' }}>
                     <div className="kpi-info" style={{ width: '100%' }}>
                         <span className="kpi-label" style={{ color: klas.color, fontWeight: 'bold' }}>{klas.id}</span>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '10px' }}>
@@ -147,6 +148,7 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
                         <div style={{ marginTop: '12px' }}>
                             <ProgressBar value={stats.avgProgres} color={klas.color} />
                         </div>
+                        <span className="kpi-trend" style={{ fontSize: '0.75rem', marginTop: '8px', display: 'block', color: klas.color }}>Klik untuk melihat daftar fase</span>
                     </div>
                 </div>
             );

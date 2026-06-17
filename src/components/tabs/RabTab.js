@@ -1,11 +1,22 @@
 "use client";
 import React, { useState } from "react";
-import { FileSpreadsheet, Printer, Plus, ChevronDown, ChevronRight, Edit, Trash2, Briefcase, Link as LinkIcon, Image as ImageIcon, Search } from "lucide-react";
+import { FileSpreadsheet, Printer, Plus, ChevronDown, ChevronRight, Edit, Trash2, Briefcase, Link as LinkIcon, Image as ImageIcon, Search, FolderOpen, FileText, ClipboardList, PlusCircle, MinusCircle } from "lucide-react";
 import { addItem, updateItem, deleteItem } from "@/lib/db";
 import { toast } from "react-hot-toast";
 import { customConfirm } from "@/lib/confirm";
 
 export default function RabTab({ rabs, projects, subPekerjaan, materials, loading, refreshData, saveData, allData }) {
+  const PercentBadge = ({ value, type = "bobot" }) => {
+      const numValue = Number(value || 0);
+      if (type === "bobot") {
+          return (
+              <span style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  {numValue.toFixed(1)}%
+              </span>
+          );
+      }
+      return null;
+  };
   const [expandedFases, setExpandedFases] = useState({});
   const [expandedSubs, setExpandedSubs] = useState({});
   const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": false, "Maintenance": false, "Pekerjaan Lain-lain": false });
@@ -18,7 +29,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   // Modals for Fase
   const [showFaseModal, setShowFaseModal] = useState(false);
   const [isEditFase, setIsEditFase] = useState(false);
-  const [faseForm, setFaseForm] = useState({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", linkGambar: "", bobotManual: "" });
+  const [faseForm, setFaseForm] = useState({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", gambarList: [], bobotManual: "" });
 
   // Modals for Sub
   const [showSubModal, setShowSubModal] = useState(false);
@@ -33,8 +44,8 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
 
   // --- FASE CRUD ---
   const handleOpenFaseModal = (item = null) => {
-    if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "", aktualMulai: item.aktualMulai || "", aktualSelesai: item.aktualSelesai || "" }); setIsEditFase(true); }
-    else { setFaseForm({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", linkGambar: "", bobotManual: "" }); setIsEditFase(false); }
+    if (item) { setFaseForm({ ...item, bobotManual: item.bobotManual ?? "", aktualMulai: item.aktualMulai || "", aktualSelesai: item.aktualSelesai || "", gambarList: item.gambarList || (item.linkGambar ? [{judul: "Gambar Utama", url: item.linkGambar}] : []) }); setIsEditFase(true); }
+    else { setFaseForm({ id: "", nama: "", klasifikasi: "Project Baru", mulai: "", selesai: "", aktualMulai: "", aktualSelesai: "", gambarList: [], bobotManual: "" }); setIsEditFase(false); }
     setShowFaseModal(true);
   };
   const handleSaveFase = async (e) => {
@@ -203,6 +214,37 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
     window.print();
   };
 
+  const [showRekapModal, setShowRekapModal] = useState(false);
+  const [selectedFaseRekap, setSelectedFaseRekap] = useState(null);
+
+  const handleOpenRekapModal = (fase) => {
+    setSelectedFaseRekap(fase);
+    setShowRekapModal(true);
+  };
+
+  const getRekapMaterial = (faseId) => {
+    if (!allData || !allData.penggunaan) return [];
+    const logs = allData.penggunaan.filter(p => p.faseId === faseId);
+    const aggregated = {};
+    logs.forEach(log => {
+        if (!aggregated[log.materialId]) {
+            aggregated[log.materialId] = 0;
+        }
+        aggregated[log.materialId] += Number(log.jumlah || 0);
+    });
+    
+    return Object.keys(aggregated).map(matId => {
+        const material = materials.find(m => m.id === matId);
+        return {
+            id: matId,
+            kode: material ? material.kode : "N/A",
+            nama: material ? material.nama : "Material Terhapus",
+            satuan: material ? material.satuan : "",
+            totalJumlah: aggregated[matId]
+        };
+    }).sort((a, b) => b.totalJumlah - a.totalJumlah);
+  };
+
   const KLASIFIKASI_DATA = [
     { id: "Project Baru", color: "var(--accent-blue)" },
     { id: "Maintenance", color: "var(--accent-green)" },
@@ -304,20 +346,26 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                                 </button>
                               </td>
                               <td style={{ fontWeight: 700, color: "var(--primary-color)" }}>
-                                📁 {fase.nama}
-                                {fase.linkGambar && (
-                                    <a href={fase.linkGambar} target="_blank" rel="noopener noreferrer" className="btn btn-small non-printable" style={{ marginLeft: '10px', display: 'inline-flex', padding: '2px 6px', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent-blue)', border: '1px solid rgba(56, 189, 248, 0.2)' }} onClick={(e) => e.stopPropagation()}>
-                                      <ImageIcon size={12} style={{ marginRight: '4px' }}/> Gambar
-                                    </a>
+                                <FolderOpen size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> {fase.nama}
+                                {fase.gambarList && fase.gambarList.length > 0 && (
+                                    <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
+                                      <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> {fase.gambarList.length} Gambar
+                                    </span>
+                                )}
+                                {!fase.gambarList && fase.linkGambar && (
+                                    <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
+                                      <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> 1 Gambar
+                                    </span>
                                 )}
                               </td>
                               <td style={{ fontWeight: 'bold' }}>
-                                {Number(fase.bobot || 0).toFixed(1)}%
+                                <PercentBadge value={fase.bobot} type="bobot" />
                                 {hasManualBobot && <div style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual)</div>}
                               </td>
                               <td colSpan="4"></td>
                               <td className="non-printable">
                                 <div style={{ display: 'flex', gap: '6px' }}>
+                                    <button className="btn btn-small btn-secondary" onClick={(e) => { e.stopPropagation(); handleOpenRekapModal(fase); }} title="Rekap Pemakaian Material Aktual"><ClipboardList size={12}/></button>
                                     <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenSubModal(null, fase.id); }}>+ Sub</button>
                                     <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenFaseModal(fase); }}><Edit size={12}/></button>
                                     <button className="btn btn-small btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteFase(fase.id); }}><Trash2 size={12}/></button>
@@ -325,14 +373,19 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                               </td>
                             </tr>
 
-                            {isFaseExpanded && fase.linkGambar && (
+                            {isFaseExpanded && ((fase.gambarList && fase.gambarList.length > 0) || fase.linkGambar) && (
                                 <tr style={{ background: "rgba(255,255,255,0.02)" }} className="non-printable">
                                     <td className="non-printable"></td>
                                     <td colSpan="7">
-                                        <div style={{ padding: '10px 0', marginLeft: '20px' }}>
-                                            <a href={fase.linkGambar} target="_blank" rel="noopener noreferrer">
-                                                <img src={fase.linkGambar} alt="Lampiran" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--card-border)', objectFit: 'contain' }} />
-                                            </a>
+                                        <div style={{ padding: '10px 0', marginLeft: '20px', display: 'flex', gap: '15px', overflowX: 'auto' }}>
+                                            {(fase.gambarList && fase.gambarList.length > 0 ? fase.gambarList : [{judul: "Lampiran Utama", url: fase.linkGambar}]).map((gbr, idx) => (
+                                                <div key={idx} style={{ textAlign: 'center', flexShrink: 0 }}>
+                                                    <a href={gbr.url} target="_blank" rel="noopener noreferrer">
+                                                        <img src={gbr.url} alt={gbr.judul} style={{ maxWidth: '180px', maxHeight: '120px', borderRadius: '8px', border: '1px solid var(--card-border)', objectFit: 'cover' }} />
+                                                    </a>
+                                                    <div style={{ fontSize: '0.8rem', marginTop: '5px', color: 'var(--text-secondary)' }}>{gbr.judul || `Gambar ${idx + 1}`}</div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </td>
                                 </tr>
@@ -354,10 +407,10 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                                       <button className="btn-expand non-printable" style={{ background: "none", border: "none", pointerEvents: "none", color: "var(--text-secondary)", marginRight: "8px" }}>
                                         {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                       </button>
-                                      📄 {sub.nama}
+                                      <FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> {sub.nama}
                                     </td>
                                     <td style={{ fontWeight: 'bold' }}>
-                                      {Number(sub.bobot || 0).toFixed(1)}%
+                                      <PercentBadge value={sub.bobot} type="bobot" />
                                       {hasManualSubBobot && <div style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual)</div>}
                                     </td>
                                     <td colSpan="4"></td>
@@ -380,7 +433,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                                           <td className="non-printable"></td>
                                           <td style={{ paddingLeft: "50px", fontSize: "0.9rem", color: "var(--text-secondary)" }}>• {item.nama}</td>
                                           <td>
-                                              {Number(item.bobot || 0).toFixed(1)}%
+                                              <PercentBadge value={item.bobot} type="bobot" />
                                               {hasManualItemBobot && <div style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual)</div>}
                                           </td>
                                           <td><span className={`badge badge-${item.tipe === 'Bahan' ? 'blue' : 'orange'}`}>{item.tipe}</span></td>
@@ -425,7 +478,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
               <h3>{isEditFase ? 'Edit Kategori/Fase' : 'Tambah Kategori/Fase'}</h3>
               <button type="button" className="btn-close" onClick={() => setShowFaseModal(false)}>&times;</button>
             </div>
-            <form className="modal-body" onSubmit={handleSaveFase}>
+            <form className="modal-body" onSubmit={handleSaveFase} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '10px' }}>
               <div className="form-group">
                 <label>Nama Kategori Pekerjaan</label>
                 <input type="text" required value={faseForm.nama} onChange={(e) => setFaseForm({...faseForm, nama: e.target.value})} placeholder="Contoh: Pekerjaan Persiapan" />
@@ -468,11 +521,15 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                 <input type="number" step="0.1" min="0" max="100" value={faseForm.bobotManual} onChange={(e) => setFaseForm({...faseForm, bobotManual: e.target.value})} placeholder="Kosongkan untuk bagi rata otomatis" />
               </div>
               <div className="form-group" style={{ marginTop: '10px' }}>
-                <label>Link Gambar Kerja (Opsional)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <LinkIcon size={16} style={{ color: 'var(--text-muted)' }} />
-                  <input type="url" value={faseForm.linkGambar || ''} onChange={(e) => setFaseForm({...faseForm, linkGambar: e.target.value})} placeholder="https://drive.google.com/... atau URL gambar" style={{ flex: 1 }} />
-                </div>
+                <label>Daftar Gambar Kerja (Opsional)</label>
+                {faseForm.gambarList?.map((gbr, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <input type="text" placeholder="Judul Gambar" value={gbr.judul} onChange={(e) => { const newArr = [...faseForm.gambarList]; newArr[idx].judul = e.target.value; setFaseForm({...faseForm, gambarList: newArr}); }} style={{ flex: 1 }} />
+                    <input type="url" placeholder="https://drive.google.com/... atau URL gambar" value={gbr.url} onChange={(e) => { const newArr = [...faseForm.gambarList]; newArr[idx].url = e.target.value; setFaseForm({...faseForm, gambarList: newArr}); }} style={{ flex: 2 }} />
+                    <button type="button" className="btn btn-small btn-danger" onClick={() => { const newArr = faseForm.gambarList.filter((_, i) => i !== idx); setFaseForm({...faseForm, gambarList: newArr}); }}><MinusCircle size={14} /></button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-small btn-secondary" onClick={() => setFaseForm({...faseForm, gambarList: [...(faseForm.gambarList||[]), {judul: "", url: ""}]})} style={{ marginTop: '5px' }}><PlusCircle size={14} style={{ marginRight: '4px' }}/> Tambah Link Gambar</button>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowFaseModal(false)} disabled={isSaving}>Batal</button>
@@ -493,7 +550,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
               <h3>{isEditSub ? 'Edit Sub-Pekerjaan' : 'Tambah Sub-Pekerjaan'}</h3>
               <button type="button" className="btn-close" onClick={() => setShowSubModal(false)}>&times;</button>
             </div>
-            <form className="modal-body" onSubmit={handleSaveSub}>
+            <form className="modal-body" onSubmit={handleSaveSub} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '10px' }}>
               <div className="form-group">
                 <label>Kategori (Fase) Induk</label>
                 <select 
@@ -532,7 +589,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
               <h3>{isEdit ? 'Edit Item RAB' : 'Tambah Item RAB'}</h3>
               <button type="button" className="btn-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
-            <form className="modal-body" onSubmit={handleSave}>
+            <form className="modal-body" onSubmit={handleSave} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '10px' }}>
               <div className="form-group">
                 <label>Sub-Pekerjaan</label>
                 <select 
@@ -585,6 +642,56 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
           </div>
         </div>
       )}
+
+      {/* MODAL REKAP MATERIAL */}
+      {showRekapModal && selectedFaseRekap && (
+        <div className="modal active non-printable" style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-card" style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h3>Rekap Aktual Material: {selectedFaseRekap.nama}</h3>
+              <button type="button" className="btn-close" onClick={() => setShowRekapModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>
+                Berikut adalah akumulasi material aktual yang telah digunakan (dikeluarkan dari gudang) untuk kategori pekerjaan ini. 
+                Data ini diambil secara sinkron dari menu <strong>Barang Keluar</strong>.
+              </p>
+              <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px' }}>Part Number</th>
+                    <th style={{ textAlign: 'left', padding: '10px' }}>Nama Material</th>
+                    <th style={{ textAlign: 'right', padding: '10px' }}>Total Pemakaian Aktual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getRekapMaterial(selectedFaseRekap.id).length === 0 ? (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        Belum ada data pemakaian material aktual untuk pekerjaan ini di menu Barang Keluar.
+                      </td>
+                    </tr>
+                  ) : (
+                    getRekapMaterial(selectedFaseRekap.id).map(mat => (
+                      <tr key={mat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{mat.kode}</td>
+                        <td style={{ padding: '10px', fontWeight: 'bold' }}>{mat.nama}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent-blue)' }}>
+                          {mat.totalJumlah} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{mat.satuan}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-footer" style={{ padding: '20px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button className="btn btn-secondary" onClick={() => setShowRekapModal(false)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{__html: `
         .row-hover:hover {
             background-color: rgba(255,255,255,0.15) !important;

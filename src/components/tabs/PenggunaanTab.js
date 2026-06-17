@@ -1,11 +1,103 @@
 "use client";
 import React, { useState } from "react";
-import { FileSpreadsheet, Plus, ArrowUpRight, Search } from "lucide-react";
+import { FileSpreadsheet, Plus, ArrowUpRight, Search, ChevronDown } from "lucide-react";
 import { addPenggunaanTransaction, updatePenggunaanTransaction, deletePenggunaanTransaction } from "@/lib/db";
 import { toast } from "react-hot-toast";
 import { customConfirm } from "@/lib/confirm";
 
 export default function PenggunaanTab({ logs, materials, projects, subPekerjaan, loading, refreshData, saveData, allData }) {
+  const SearchableSelect = ({ options, value, onChange, placeholder, disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const dropdownRef = React.useRef(null);
+
+    React.useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setIsOpen(false);
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const selectedOption = options.find(o => o.value === value);
+    const displayValue = selectedOption ? selectedOption.label : search;
+    const filteredOptions = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+      <div ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
+        <div 
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          style={{
+            background: 'var(--input-bg, rgba(255,255,255,0.05))',
+            border: '1px solid var(--input-border, rgba(255,255,255,0.1))',
+            padding: '10px 15px',
+            borderRadius: '8px',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            color: disabled ? 'var(--text-muted)' : 'var(--text-primary)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          <input 
+            type="text"
+            value={isOpen ? search : displayValue}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              if (!isOpen) setIsOpen(true);
+            }}
+            onClick={(e) => {
+                if(!disabled) {
+                   setIsOpen(true);
+                   if(selectedOption) setSearch("");
+                }
+            }}
+            placeholder={placeholder}
+            disabled={disabled}
+            style={{ background: 'transparent', border: 'none', color: 'inherit', outline: 'none', width: '100%' }}
+          />
+          <ChevronDown size={16} />
+        </div>
+        {isOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: '#1e293b',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            marginTop: '4px',
+            maxHeight: '200px',
+            overflowY: 'auto',
+            zIndex: 1000,
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+          }}>
+            {filteredOptions.length > 0 ? filteredOptions.map(opt => (
+              <div 
+                key={opt.value}
+                onClick={() => {
+                  onChange(opt.value);
+                  setSearch("");
+                  setIsOpen(false);
+                }}
+                style={{ padding: '10px 15px', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+              >
+                {opt.label}
+              </div>
+            )) : (
+              <div style={{ padding: '10px 15px', color: 'var(--text-muted)' }}>Tidak ditemukan</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const [showModal, setShowModal] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -93,37 +185,35 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
 
   const filteredSubs = subPekerjaan.filter(s => s.faseId === form.faseId);
 
-  const pendingOrders = (allData.ordersData || []).filter(o => o.status !== "Selesai");
+  const barangMasukList = allData.barangMasuk || [];
 
   const checkAutoFill = (mrVal, prVal) => {
      if (!mrVal && !prVal) return;
-     const matchingOrders = pendingOrders.filter(o => (mrVal && o.mr === mrVal) || (prVal && o.pr === prVal));
+     const matchingMasuk = barangMasukList.filter(m => (mrVal && m.mr === mrVal) || (prVal && m.pr === prVal));
      
-     const relevantOrder = form.materialId 
-       ? matchingOrders.find(o => materials.find(m => m.id === form.materialId)?.kode === o.partnumber)
-       : matchingOrders[0];
+     const relevantMasuk = form.materialId 
+       ? matchingMasuk.find(m => m.materialId === form.materialId)
+       : matchingMasuk[0];
 
-     if (relevantOrder) {
+     if (relevantMasuk) {
         setForm(prev => ({
           ...prev,
-          jumlah: relevantOrder.qty || prev.jumlah,
-          keterangan: relevantOrder.keperluan || prev.keterangan,
-          mr: relevantOrder.mr || prev.mr,
-          pr: relevantOrder.pr || prev.pr
+          jumlah: relevantMasuk.jumlah || prev.jumlah,
+          keterangan: relevantMasuk.keperluan || prev.keterangan,
+          mr: relevantMasuk.mr || prev.mr,
+          pr: relevantMasuk.pr || prev.pr,
+          faseId: relevantMasuk.keperluan ? (projects.find(p => relevantMasuk.keperluan.toLowerCase().includes(p.nama.toLowerCase()))?.id || prev.faseId) : prev.faseId
         }));
      }
   };
 
-  // Dropdown MR dan PR difilter berdasarkan Part Number yang dipilih
-  const availableOrdersForMaterial = form.materialId 
-    ? pendingOrders.filter(o => {
-        const mat = materials.find(m => m.id === form.materialId);
-        return mat && o.partnumber === mat.kode;
-      })
-    : pendingOrders;
+  // Dropdown MR dan PR difilter berdasarkan Part Number yang dipilih dari riwayat Barang Masuk
+  const availableMasukForMaterial = form.materialId 
+    ? barangMasukList.filter(m => m.materialId === form.materialId)
+    : barangMasukList;
 
-  const availableMRs = [...new Set(availableOrdersForMaterial.map(o => o.mr).filter(Boolean))];
-  const availablePRs = [...new Set(availableOrdersForMaterial.map(o => o.pr).filter(Boolean))];
+  const availableMRs = [...new Set(availableMasukForMaterial.map(m => m.mr).filter(Boolean))];
+  const availablePRs = [...new Set(availableMasukForMaterial.map(m => m.pr).filter(Boolean))];
 
   // Search logic
   const filteredLogs = logs.filter(item => {
@@ -134,6 +224,13 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
     const subName = getSubName(item.subPekerjaanId).toLowerCase();
     return matName.includes(s) || faseName.includes(s) || subName.includes(s) || (item.penerima || "").toLowerCase().includes(s) || (item.keterangan || "").toLowerCase().includes(s) || (item.mr || "").toLowerCase().includes(s) || (item.pr || "").toLowerCase().includes(s);
   });
+
+  const materialOptions = materials.map(m => ({ value: m.id, label: `[${m.kode}] ${m.nama}` }));
+  const mrOptions = availableMRs.map(mr => ({ value: mr, label: mr }));
+  const prOptions = availablePRs.map(pr => ({ value: pr, label: pr }));
+  const faseOptions = projects.map(p => ({ value: p.id, label: p.nama }));
+  const subOptions = filteredSubs.map(s => ({ value: s.id, label: s.nama }));
+  const isFormReady = form.materialId && form.faseId && Number(form.jumlah) > 0;
 
   return (
     <section className="tab-panel active" style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -222,70 +319,73 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
             <form className="modal-body" onSubmit={handleSave}>
               <div className="form-group" style={{ marginBottom: "15px" }}>
                 <label>1. Pilih Material / Part Number</label>
-                <input 
-                  type="text" 
-                  list="material-list" 
-                  required 
-                  value={form.materialNameInput || ""} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    let mat = materials.find(m => `[${m.kode}] ${m.nama}` === val);
-                    let newVal = val;
-                    if (!mat) {
-                        const matByKode = materials.find(m => m.kode === val);
-                        if (matByKode) {
-                            mat = matByKode;
-                            newVal = `[${mat.kode}] ${mat.nama}`;
-                        }
-                    }
+                <SearchableSelect 
+                  options={materialOptions}
+                  value={form.materialId}
+                  onChange={(val) => {
+                    const mat = materials.find(m => m.id === val);
                     let newMr = "";
                     let newPr = "";
                     let autoJumlah = 0;
                     let autoKeterangan = "";
                     if (mat) {
-                        const matchingOrders = pendingOrders.filter(o => o.partnumber === mat.kode || o.nama === mat.nama);
-                        if (matchingOrders.length === 1) {
-                            newMr = matchingOrders[0].mr || "";
-                            newPr = matchingOrders[0].pr || "";
-                            autoJumlah = matchingOrders[0].qty || 0;
-                            autoKeterangan = matchingOrders[0].keperluan || "";
+                        const matchingMasuk = barangMasukList.filter(m => m.materialId === mat.id);
+                        if (matchingMasuk.length === 1) {
+                            newMr = matchingMasuk[0].mr || "";
+                            newPr = matchingMasuk[0].pr || "";
+                            autoJumlah = matchingMasuk[0].jumlah || 0;
+                            autoKeterangan = matchingMasuk[0].keperluan || "";
                         }
                     }
-                    setForm({...form, materialNameInput: newVal, materialId: mat ? mat.id : "", mr: newMr, pr: newPr, jumlah: autoJumlah || form.jumlah, keterangan: autoKeterangan || form.keterangan});
-                  }} 
-                  placeholder="Ketik nama atau kode material..." 
+                    setForm({
+                      ...form, 
+                      materialId: val, 
+                      mr: newMr, 
+                      pr: newPr, 
+                      jumlah: autoJumlah || form.jumlah, 
+                      keterangan: autoKeterangan || form.keterangan,
+                      faseId: autoKeterangan ? (projects.find(p => autoKeterangan.toLowerCase().includes(p.nama.toLowerCase()))?.id || form.faseId) : form.faseId
+                    });
+                  }}
+                  placeholder="Ketik/Pilih material..."
                 />
-                <datalist id="material-list">
-                  {materials.map(m => <option key={m.id} value={`[${m.kode}] ${m.nama}`} />)}
-                </datalist>
               </div>
 
               <div style={{ display: 'flex', gap: '15px', marginBottom: "15px" }}>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>2. No. MR (Terfilter by Material)</label>
-                  <input type="text" list="mr-list" value={form.mr} onChange={(e) => {
-                     setForm({...form, mr: e.target.value});
-                     checkAutoFill(e.target.value, form.pr);
-                  }} placeholder="Pilih MR..." disabled={!form.materialId} />
-                  <datalist id="mr-list">
-                    {availableMRs.map(mr => <option key={mr} value={mr} />)}
-                  </datalist>
+                  <SearchableSelect 
+                    options={mrOptions}
+                    value={form.mr}
+                    onChange={(val) => {
+                       setForm({...form, mr: val});
+                       checkAutoFill(val, form.pr);
+                    }}
+                    placeholder="Pilih MR..."
+                    disabled={!form.materialId || availableMRs.length === 0}
+                  />
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>3. No. PR (Terfilter by Material)</label>
-                  <input type="text" list="pr-list" value={form.pr} onChange={(e) => {
-                     setForm({...form, pr: e.target.value});
-                     checkAutoFill(form.mr, e.target.value);
-                  }} placeholder="Pilih PR..." disabled={!form.materialId} />
-                  <datalist id="pr-list">
-                    {availablePRs.map(pr => <option key={pr} value={pr} />)}
-                  </datalist>
+                  <SearchableSelect 
+                    options={prOptions}
+                    value={form.pr}
+                    onChange={(val) => {
+                       setForm({...form, pr: val});
+                       checkAutoFill(form.mr, val);
+                    }}
+                    placeholder="Pilih PR..."
+                    disabled={!form.materialId || availablePRs.length === 0}
+                  />
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Jumlah Dipakai</label>
-                  <input type="number" required min="0.1" step="any" value={form.jumlah} onChange={(e) => setForm({...form, jumlah: e.target.value})} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <input type="number" required min="0.1" step="any" value={form.jumlah} onChange={(e) => setForm({...form, jumlah: e.target.value})} style={{ flex: 1 }} />
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 'bold' }}>{form.materialId ? getMaterialSatuan(form.materialId) : ""}</span>
+                  </div>
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Tanggal</label>
@@ -295,39 +395,26 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Kategori Pekerjaan</label>
-                  <input 
-                    type="text" 
-                    list="fase-list" 
-                    required 
-                    value={form.faseNameInput} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const f = projects.find(p => p.nama === val);
-                      setForm({...form, faseNameInput: val, faseId: f ? f.id : "", subPekerjaanId: "", subPekerjaanNameInput: ""});
-                    }} 
-                    placeholder="Ketik/Pilih Kategori..." 
+                  <SearchableSelect 
+                    options={faseOptions}
+                    value={form.faseId}
+                    onChange={(val) => {
+                      setForm({...form, faseId: val, subPekerjaanId: ""});
+                    }}
+                    placeholder="Pilih Kategori..."
                   />
-                  <datalist id="fase-list">
-                    {projects.map(p => <option key={p.id} value={p.nama} />)}
-                  </datalist>
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Sub-Pekerjaan</label>
-                  <input 
-                    type="text" 
-                    list="sub-list" 
-                    required 
-                    value={form.subPekerjaanNameInput} 
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const s = filteredSubs.find(sub => sub.nama === val);
-                      setForm({...form, subPekerjaanNameInput: val, subPekerjaanId: s ? s.id : ""});
-                    }} 
-                    placeholder="Ketik/Pilih Sub..." 
+                  <SearchableSelect 
+                    options={subOptions}
+                    value={form.subPekerjaanId}
+                    onChange={(val) => {
+                      setForm({...form, subPekerjaanId: val});
+                    }}
+                    placeholder="Pilih Sub..."
+                    disabled={!form.faseId || filteredSubs.length === 0}
                   />
-                  <datalist id="sub-list">
-                    {filteredSubs.map(s => <option key={s.id} value={s.nama} />)}
-                  </datalist>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '15px' }}>
@@ -342,9 +429,15 @@ export default function PenggunaanTab({ logs, materials, projects, subPekerjaan,
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                  {isSaving ? "Menyimpan..." : "Simpan Log"}
-                </button>
+                {isFormReady ? (
+                  <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                    {isSaving ? "Menyimpan..." : "Simpan Log"}
+                  </button>
+                ) : (
+                  <div style={{ color: 'var(--accent-orange)', alignSelf: 'center', fontSize: '0.9rem' }}>
+                    Mohon lengkapi Material, Kategori, dan Jumlah untuk menyimpan.
+                  </div>
+                )}
               </div>
             </form>
           </div>

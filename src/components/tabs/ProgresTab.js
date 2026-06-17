@@ -1,5 +1,5 @@
 "use client";
-import { FileSpreadsheet, ChevronDown, ChevronRight, Edit, Printer, Briefcase, Image as ImageIcon, Settings2, Search } from "lucide-react";
+import { FileSpreadsheet, ChevronDown, ChevronRight, Edit, Printer, Briefcase, Image as ImageIcon, Settings2, Search, FolderOpen, FileText, ClipboardList } from "lucide-react";
 import React, { useState } from "react";
 import { updateItem } from "@/lib/db";
 
@@ -78,6 +78,29 @@ const ProgressBar = ({ value, color = "var(--primary-color)", dynamicColor = fal
 };
 
 export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refreshData, saveData, allData }) {
+  const PercentBadge = ({ value, type = "progres" }) => {
+      const numValue = Number(value || 0);
+      if (type === "bobot") {
+          return (
+              <span style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-secondary)", padding: "2px 8px", borderRadius: "12px", fontSize: "0.75rem", fontWeight: "bold", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  {numValue.toFixed(1)}%
+              </span>
+          );
+      }
+      let color = "var(--accent-blue)";
+      if (numValue >= 100) { color = "var(--accent-green)"; }
+      else if (numValue > 0 && numValue < 30) { color = "var(--accent-red)"; }
+      else if (numValue >= 30 && numValue < 70) { color = "var(--accent-orange)"; }
+      else if (numValue === 0) { color = "var(--text-muted)"; }
+      return (
+        <div style={{ width: "100%", minWidth: "60px", maxWidth: "90px", background: "rgba(255,255,255,0.05)", border: '1px solid rgba(255,255,255,0.1)', borderRadius: "12px", height: "18px", position: "relative", overflow: "hidden", display: 'inline-block', verticalAlign: 'middle' }}>
+          <div style={{ width: `${Math.min(numValue, 100)}%`, background: color, height: "100%", transition: "width 0.5s ease", opacity: 0.8 }}></div>
+          <span style={{ position: "absolute", width: "100%", textAlign: "center", top: "0", left: 0, lineHeight: "16px", fontSize: "0.7rem", color: "#fff", fontWeight: "bold", textShadow: "1px 1px 3px rgba(0,0,0,0.9)" }}>
+            {numValue.toFixed(1)}%
+          </span>
+        </div>
+      );
+  };
   const [expandedFases, setExpandedFases] = useState({});
   const [expandedSubs, setExpandedSubs] = useState({});
   const [expandedKlasifikasi, setExpandedKlasifikasi] = useState({ "Project Baru": false, "Maintenance": false, "Pekerjaan Lain-lain": false });
@@ -193,6 +216,37 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
     window.print();
   };
 
+  const [showRekapModal, setShowRekapModal] = useState(false);
+  const [selectedFaseRekap, setSelectedFaseRekap] = useState(null);
+
+  const handleOpenRekapModal = (fase) => {
+    setSelectedFaseRekap(fase);
+    setShowRekapModal(true);
+  };
+
+  const getRekapMaterial = (faseId) => {
+    if (!allData || !allData.penggunaan || !allData.stok) return [];
+    const logs = allData.penggunaan.filter(p => p.faseId === faseId);
+    const aggregated = {};
+    logs.forEach(log => {
+        if (!aggregated[log.materialId]) {
+            aggregated[log.materialId] = 0;
+        }
+        aggregated[log.materialId] += Number(log.jumlah || 0);
+    });
+    
+    return Object.keys(aggregated).map(matId => {
+        const material = allData.stok.find(m => m.id === matId);
+        return {
+            id: matId,
+            kode: material ? material.kode : "N/A",
+            nama: material ? material.nama : "Material Terhapus",
+            satuan: material ? material.satuan : "",
+            totalJumlah: aggregated[matId]
+        };
+    }).sort((a, b) => b.totalJumlah - a.totalJumlah);
+  };
+
   const KLASIFIKASI_DATA = [
     { id: "Project Baru", color: "var(--accent-blue)" },
     { id: "Maintenance", color: "var(--accent-green)" },
@@ -304,14 +358,19 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     </button>
                                     </td>
                                     <td style={{ fontWeight: 700, color: "var(--primary-color)" }}>
-                                      {project.nama}
-                                      {project.linkGambar && (
-                                          <a href={project.linkGambar} target="_blank" rel="noopener noreferrer" className="btn btn-small non-printable" style={{ marginLeft: '10px', display: 'inline-flex', padding: '2px 6px', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent-blue)', border: '1px solid rgba(56, 189, 248, 0.2)' }} onClick={(e) => e.stopPropagation()}>
-                                            <ImageIcon size={12} style={{ marginRight: '4px' }}/> Gambar
-                                          </a>
+                                      <FolderOpen size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> {project.nama}
+                                      {project.gambarList && project.gambarList.length > 0 && (
+                                          <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
+                                            <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> {project.gambarList.length} Gambar
+                                          </span>
+                                      )}
+                                      {!project.gambarList && project.linkGambar && (
+                                          <span className="badge badge-blue non-printable" style={{ marginLeft: '10px' }}>
+                                            <ImageIcon size={12} style={{ marginRight: '4px', verticalAlign: 'text-bottom' }}/> 1 Gambar
+                                          </span>
                                       )}
                                     </td>
-                                    <td style={{ fontWeight: "bold" }}>{Number(project.bobot || 0).toFixed(1)}%</td>
+                                    <td><PercentBadge value={project.bobot} type="bobot" /></td>
                                     <td>
                                     <div style={{ fontSize: "0.8rem", marginBottom: "4px" }}>{project.mulai || '-'} s.d {project.selesai || '-'}</div>
                                     <div dangerouslySetInnerHTML={{ __html: schedule.status }}></div>
@@ -324,12 +383,33 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                     <td className="non-printable">
                                       <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenRekapModal(project); }} title="Rekap Pemakaian Material Aktual" style={{ background: 'var(--accent-blue)', color: 'white', border: 'none', display: 'flex', alignItems: 'center' }}>
+                                          <ClipboardList size={12} style={{ marginRight: '4px' }}/> Rekap Material
+                                        </button>
                                         <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenFaseUpdate(project); }} title="Update Progres Manual">
                                           <Settings2 size={12} style={{ marginRight: "4px" }}/> Update
                                         </button>
                                       </div>
                                     </td>
                                 </tr>
+                                
+                                {isFaseExpanded && ((project.gambarList && project.gambarList.length > 0) || project.linkGambar) && (
+                                    <tr style={{ background: "rgba(255,255,255,0.02)" }} className="non-printable">
+                                        <td className="non-printable"></td>
+                                        <td colSpan="7">
+                                            <div style={{ padding: '10px 0', marginLeft: '20px', display: 'flex', gap: '15px', overflowX: 'auto' }}>
+                                                {(project.gambarList && project.gambarList.length > 0 ? project.gambarList : [{judul: "Lampiran Utama", url: project.linkGambar}]).map((gbr, idx) => (
+                                                    <div key={idx} style={{ textAlign: 'center', flexShrink: 0 }}>
+                                                        <a href={gbr.url} target="_blank" rel="noopener noreferrer">
+                                                            <img src={gbr.url} alt={gbr.judul} style={{ maxWidth: '180px', maxHeight: '120px', borderRadius: '8px', border: '1px solid var(--card-border)', objectFit: 'cover' }} />
+                                                        </a>
+                                                        <div style={{ fontSize: '0.8rem', marginTop: '5px', color: 'var(--text-secondary)' }}>{gbr.judul || `Gambar ${idx + 1}`}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
                                 
                                 {isFaseExpanded && subs.map(sub => {
                                     let items = filteredRabs(sub.id);
@@ -347,16 +427,16 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                             <button className="btn-expand non-printable" style={{ background: "none", border: "none", color: "var(--text-secondary)", marginRight: "8px", pointerEvents: "none" }}>
                                             {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                             </button>
-                                            ↳ {sub.nama}
+                                            <FileText size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> {sub.nama}
                                         </td>
-                                        <td>{Number(sub.bobot || 0).toFixed(1)}%</td>
-                                        <td style={{ fontSize: "0.8rem" }}>-</td>
+                                        <td><PercentBadge value={sub.bobot} type="bobot" /></td>
+                                        <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                         <td><ProgressBar value={sub.target} color="var(--primary-color)" /></td>
                                         <td>
                                           <ProgressBar value={sub.progres} dynamicColor={true} />
                                           {hasManualSubProgres && <span style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual Input)</span>}
                                         </td>
-                                        <td>-</td>
+                                        <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                         <td className="non-printable">
                                           <div style={{ display: 'flex', gap: '6px' }}>
                                             <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenSubUpdate(sub); }} title="Update Progres Manual">
@@ -373,7 +453,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                             <tr key={item.id} style={{ background: "rgba(0,0,0,0.2)", borderBottom: "1px dashed rgba(255,255,255,0.05)" }}>
                                             <td className="non-printable"></td>
                                             <td style={{ paddingLeft: "50px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>• {item.nama}</td>
-                                            <td style={{ fontSize: "0.85rem" }}>{Number(item.bobot || 0).toFixed(1)}%</td>
+                                            <td><PercentBadge value={item.bobot} type="bobot" /></td>
                                             <td style={{ fontSize: "0.8rem" }}>
                                                 {item.aktualMulai ? (
                                                 <div style={{ marginBottom: "4px" }}>
@@ -503,6 +583,55 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
         </div>
       )}
       
+      {/* MODAL REKAP MATERIAL */}
+      {showRekapModal && selectedFaseRekap && (
+        <div className="modal active non-printable" style={{ zIndex: 9999 }}>
+          <div className="modal-content glass-card" style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h3>Rekap Aktual Material: {selectedFaseRekap.nama}</h3>
+              <button type="button" className="btn-close" onClick={() => setShowRekapModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>
+                Berikut adalah akumulasi material aktual yang telah digunakan (dikeluarkan dari gudang) untuk kategori pekerjaan ini. 
+                Data ini diambil secara sinkron dari menu <strong>Barang Keluar</strong>.
+              </p>
+              <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                    <th style={{ textAlign: 'left', padding: '10px' }}>Part Number</th>
+                    <th style={{ textAlign: 'left', padding: '10px' }}>Nama Material</th>
+                    <th style={{ textAlign: 'right', padding: '10px' }}>Total Pemakaian Aktual</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getRekapMaterial(selectedFaseRekap.id).length === 0 ? (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                        Belum ada data pemakaian material aktual untuk pekerjaan ini di menu Barang Keluar.
+                      </td>
+                    </tr>
+                  ) : (
+                    getRekapMaterial(selectedFaseRekap.id).map(mat => (
+                      <tr key={mat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{mat.kode}</td>
+                        <td style={{ padding: '10px', fontWeight: 'bold' }}>{mat.nama}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent-blue)' }}>
+                          {mat.totalJumlah} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{mat.satuan}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-footer" style={{ padding: '20px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button className="btn btn-secondary" onClick={() => setShowRekapModal(false)}>Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{__html: `
         .row-hover:hover {
             background-color: rgba(255,255,255,0.15) !important;
