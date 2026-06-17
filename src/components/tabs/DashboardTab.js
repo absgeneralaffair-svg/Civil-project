@@ -12,44 +12,51 @@ function analyzeDateSchedule(jadwalMulai, jadwalSelesai, aktualMulai, aktualSele
     const jMulai = hasJadwal ? new Date(jadwalMulai) : null;
     const jSelesai = hasJadwal ? new Date(jadwalSelesai) : null;
 
-    if (!hasJadwal) return { statusText: 'Belum di-set', isDelayed: false, badgeClass: 'badge-gray' };
-
     let aMulai = aktualMulai ? new Date(aktualMulai) : null;
     let aSelesai = aktualSelesai ? new Date(aktualSelesai) : null;
 
     const endDate = aSelesai ? aSelesai : now;
     let selisihHari = 0;
     
-    if (endDate > jSelesai) {
+    if (hasJadwal && endDate > jSelesai) {
         selisihHari = Math.ceil((endDate - jSelesai) / (1000 * 60 * 60 * 24));
     }
 
     if (progress >= 100) {
-        if (selisihHari > 0) {
+        if (hasJadwal && selisihHari > 0) {
            statusText = `Selesai (Terlambat ${selisihHari} Hari)`;
            isDelayed = true;
            badgeClass = 'badge-orange';
-        } else {
+        } else if (hasJadwal) {
            statusText = 'Selesai (Sesuai)';
+           badgeClass = 'badge-green';
+        } else {
+           statusText = 'Selesai';
            badgeClass = 'badge-green';
         }
     } else if (progress > 0) {
-        if (now > jSelesai) {
+        if (hasJadwal && now > jSelesai) {
             statusText = `Berjalan (Terlambat ${selisihHari} Hari)`;
             isDelayed = true;
             badgeClass = 'badge-orange';
-        } else {
+        } else if (hasJadwal) {
             statusText = 'Berjalan (On-Track)';
+            badgeClass = 'badge-blue';
+        } else {
+            statusText = 'Berjalan';
             badgeClass = 'badge-blue';
         }
     } else {
-        if (now > jMulai) {
+        if (hasJadwal && now > jMulai) {
             const terlambatMulai = Math.ceil((now - jMulai) / (1000 * 60 * 60 * 24));
             statusText = `Belum Mulai (Terlambat ${terlambatMulai} Hari)`;
             isDelayed = true;
             badgeClass = 'badge-red';
-        } else {
+        } else if (hasJadwal) {
             statusText = 'Belum Mulai';
+            badgeClass = 'badge-gray';
+        } else {
+            statusText = 'Belum di-set';
             badgeClass = 'badge-gray';
         }
     }
@@ -247,8 +254,8 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
           <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <PlayCircle size={22} color="var(--accent-blue)" />
             <div>
-              <h4 className="card-title">Pekerjaan Sedang Berjalan</h4>
-              <p className="card-subtitle">Fase yang sedang aktif dikerjakan di lapangan.</p>
+              <h4 className="card-title">Pekerjaan Berjalan (On-Track)</h4>
+              <p className="card-subtitle">Fase yang sedang aktif dikerjakan di lapangan sesuai jadwal.</p>
             </div>
           </div>
           <div className="table-container" style={{ marginTop: '16px', maxHeight: '350px', overflowY: 'auto' }}>
@@ -257,19 +264,21 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
                 <tr>
                   <th>Fase Pekerjaan</th>
                   <th>Jadwal Selesai</th>
+                  <th>Target</th>
                   <th>Realisasi Progres</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan="3" style={{ textAlign: "center" }}>Memuat...</td></tr>
+                  <tr><td colSpan="4" style={{ textAlign: "center" }}>Memuat...</td></tr>
                 ) : activeProjects.length === 0 ? (
-                  <tr><td colSpan="3" style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>Belum ada pekerjaan yang aktif berjalan.</td></tr>
+                  <tr><td colSpan="4" style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>Belum ada pekerjaan yang aktif berjalan.</td></tr>
                 ) : (
                   activeProjects.map(fase => (
                     <tr key={fase.id}>
                       <td style={{ fontWeight: 600, color: "var(--accent-blue)" }}>{fase.nama}</td>
                       <td>{fase.selesai}</td>
+                      <td>{fase.target}%</td>
                       <td>
                         <ProgressBar value={fase.progres} color="var(--accent-blue)" />
                       </td>

@@ -116,7 +116,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   // States for SUB Update Modal (Manual Progress)
   const [showSubUpdateModal, setShowSubUpdateModal] = useState(false);
-  const [subUpdateForm, setSubUpdateForm] = useState({ id: "", progresManual: "" });
+  const [subUpdateForm, setSubUpdateForm] = useState({ id: "", progresManual: "", kendala: "" });
 
   const toggleFase = (id) => setExpandedFases(prev => ({ ...prev, [id]: !prev[id] }));
   const toggleSub = (id) => setExpandedSubs(prev => ({ ...prev, [id]: !prev[id] }));
@@ -164,13 +164,13 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   // Handlers for Sub Update
   const handleOpenSubUpdate = (item) => {
-    setSubUpdateForm({ id: item.id, progresManual: item.progresManual ?? "" });
+    setSubUpdateForm({ id: item.id, progresManual: item.progresManual ?? "", kendala: item.kendala || "" });
     setShowSubUpdateModal(true);
   };
   const handleSaveSubUpdate = async (e) => {
     e.preventDefault();
     try {
-      await updateItem("subPekerjaan", subUpdateForm.id, { progresManual: subUpdateForm.progresManual });
+      await updateItem("subPekerjaan", subUpdateForm.id, { progresManual: subUpdateForm.progresManual, kendala: subUpdateForm.kendala });
       saveData();
       setShowSubUpdateModal(false);
     } catch (err) {
@@ -425,7 +425,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                           <ProgressBar value={sub.progres} dynamicColor={true} />
                                           {hasManualSubProgres && <span style={{ fontSize: '0.65rem', color: 'var(--accent-orange)' }}>(Manual Input)</span>}
                                         </td>
-                                        <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
+                                        <td style={{ fontSize: "0.8rem", color: "var(--warning-color)" }}>{sub.kendala || '-'}</td>
                                         <td className="non-printable">
                                           <div style={{ display: 'flex', gap: '6px' }}>
                                             <button className="btn btn-small" onClick={(e) => { e.stopPropagation(); handleOpenSubUpdate(sub); }} title="Update Progres Manual">
@@ -569,6 +569,12 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                 <input type="number" step="0.1" min="0" max="100" value={subUpdateForm.progresManual} onChange={(e) => setSubUpdateForm({...subUpdateForm, progresManual: e.target.value})} placeholder="Kosongkan untuk otomatis EVM" />
                 <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Angka ini akan meng-override perhitungan otomatis (EVM) dari rincian item di bawahnya.</small>
               </div>
+
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label>Kendala / Catatan</label>
+                <textarea rows="3" value={subUpdateForm.kendala} onChange={(e) => setSubUpdateForm({...subUpdateForm, kendala: e.target.value})} placeholder="Tuliskan kendala di lapangan untuk sub-pekerjaan ini jika ada..."></textarea>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowSubUpdateModal(false)}>Batal</button>
                 <button type="submit" className="btn btn-primary">Simpan Progres</button>

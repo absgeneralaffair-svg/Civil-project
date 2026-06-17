@@ -25,7 +25,11 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
     setShowModal(true);
   };
 
-  const pendingOrders = (allData.ordersData || []).filter(o => o.status !== "Selesai");
+  const pendingOrders = (allData.ordersData || []).filter(o => {
+    const relatedBM = (allData.barangMasuk || []).filter(bm => bm.orderId === o.id);
+    const totalReceived = relatedBM.reduce((sum, bm) => sum + Number(bm.jumlah || 0), 0);
+    return totalReceived < Number(o.qty);
+  });
   const [selectedOrder, setSelectedOrder] = useState("");
 
 
@@ -276,10 +280,10 @@ export default function BarangMasukTab({ masukLogs, materials, loading, refreshD
                     }
                   }}
                   disabled={isEdit}
-                  placeholder="Ketik nama material / No MR / PR untuk mencari order..."
+                  placeholder="Ketik part number / nama material / No MR / PR..."
                 />
                 <datalist id="order-list">
-                  {pendingOrders.map(o => <option key={o.id} value={`[${o.id}] ${o.nama} (Order: ${o.qty}) - MR/PR: ${o.mr||o.pr||'-'}`} />)}
+                  {pendingOrders.map(o => <option key={o.id} value={`[${o.id}] ${o.partnumber ? o.partnumber + ' - ' : ''}${o.nama} (Order: ${o.qty}) - MR/PR: ${o.mr||o.pr||'-'}`} />)}
                 </datalist>
                 <small style={{ color: 'var(--text-muted)' }}>*Memilih order akan mengupdate status order otomatis.</small>
               </div>
