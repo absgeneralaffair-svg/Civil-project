@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PT. ARTA BUMI SAKTI - Civil Construction Dashboard</title>
+    <meta name="description" content="Sistem Informasi Manajemen Konstruksi Sipil Interaktif - Pantau Progres Proyek, RAB, Penggunaan dan Stok Material.">
+    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Local Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="searchable-dropdown.css">
+</head>
+<body class="theme-dark">
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Glowing background circles -->
+    <div class="glow-bg">
+        <div class="glow-circle glow-circle-1"></div>
+        <div class="glow-circle glow-circle-2"></div>
+        <div class="glow-circle glow-circle-3"></div>
+    </div>
+
+    <!-- LOGIN SCREEN OVERLAY -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="login-icon-box" style="background: transparent; box-shadow: none; width: 100px; height: 100px;">
+                <img src="logo.png" alt="ABS Logo" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            <h1 class="login-title" style="font-weight: 800; text-transform: uppercase;">PT. ARTA BUMI SAKTI</h1>
+            <p class="login-subtitle" style="color: var(--accent-orange); font-size: 0.85rem;">CIVIL & CONSTRUCTION</p>
+            
+            <div class="divider"></div>
+            
+            <form id="form-login" class="login-form">
+                <div class="form-group">
+                    <label for="login-password">Kata Sandi Akses</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="login-password" required placeholder="Masukkan kata sandi...">
+                        <button type="button" id="btn-toggle-password" class="btn-toggle-password" title="Lihat/Sembunyikan Sandi">
+                            <i data-lucide="eye" id="eye-icon"></i>
+                        </button>
+                    </div>
+                    <span class="input-helper">Petunjuk: Gunakan kata sandi <code>admin123</code></span>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-login" id="btn-login-submit">
+                    <span>Masuk Aplikasi</span>
+                    <i data-lucide="log-in"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- WELCOME SPLASH SCREEN -->
+    <div id="splash-screen" class="splash-container hidden">
+        <div class="splash-card">
+            <div class="splash-icon-box" style="background: transparent; box-shadow: none; width: 120px; height: 120px;">
+                <img src="logo.png" alt="ABS Logo" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            <h1 class="splash-title" style="font-weight: 800; text-transform: uppercase;">PT. ARTA BUMI SAKTI</h1>
+            <p class="splash-subtitle" style="color: var(--accent-orange); font-size: 1rem;">CIVIL & CONSTRUCTION</p>
+            
+            <div class="divider"></div>
+            
+            <div class="welcome-box">
+                <h2 id="welcome-greeting" class="welcome-greeting">Selamat Datang</h2>
+                <p id="welcome-date" class="welcome-date">Memuat Tanggal...</p>
+                <p id="welcome-time" class="welcome-time">00:00:00 WIB</p>
+            </div>
+            
+            <div class="loader-container">
+                <div class="loader-bar" id="loader-bar"></div>
+            </div>
+            
+            <button id="btn-enter" class="btn btn-primary btn-enter" style="opacity: 0; pointer-events: none;">
+                <span>Masuk ke Dashboard</span>
+                <i data-lucide="arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL 6: BARANG MASUK -->
+    <div id="modal-masuk" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-masuk-title">Catat Penerimaan Barang</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-masuk')">&times;</button>
+            </div>
+            <form id="form-masuk" class="modal-body">
+                <input type="hidden" id="masuk-id">
+                <input type="hidden" id="masuk-mode" value="existing">
+
+                <!-- Mode Toggle UI -->
+                <div style="display: flex; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 8px; margin-bottom: 20px;">
+                    <button type="button" id="btn-mode-existing" class="btn" style="flex:1; border-radius: 6px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 0.9rem;" onclick="setMasukMode('existing')">
+                        Stok Gudang
+                    </button>
+                    <button type="button" id="btn-mode-order" class="btn" style="flex:1; border-radius: 6px; background: transparent; color: var(--text-secondary); border: 1px solid transparent; justify-content: center; box-shadow: none; font-size: 0.9rem;" onclick="setMasukMode('order')">
+                        Dari Order
+                    </button>
+                    <button type="button" id="btn-mode-new" class="btn" style="flex:1; border-radius: 6px; background: transparent; color: var(--text-secondary); border: 1px solid transparent; justify-content: center; box-shadow: none; font-size: 0.9rem;" onclick="setMasukMode('new')">
+                        Manual Baru
+                    </button>
+                </div>
+
+                <!-- Mode: Dari Order -->
+                <div id="masuk-mode-order" style="display: none; padding-bottom: 15px; border-bottom: 1px dashed rgba(255,255,255,0.1); margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="masuk-order-select" style="color: var(--accent-green);">Pilih Data Order Material</label>
+                        <select id="masuk-order-select" style="border-color: var(--accent-green);">
+                            <option value="">-- Pilih Order / PR / MR --</option>
+                        </select>
+                        <span class="input-helper" style="color: var(--text-secondary); margin-top: 5px;">Data akan diisi otomatis berdasarkan Order yang dipilih.</span>
+                    </div>
+                </div>
+
+                <!-- Mode: Existing Material -->
+                <div id="masuk-mode-existing">
+                    <div class="form-group">
+                        <label for="masuk-material">Pilih Material / Part Number</label>
+                        <select id="masuk-material">
+                            <!-- Options -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Mode: New Material -->
+                <div id="masuk-mode-new" style="display: none;">
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="masuk-new-kode">Part Number</label>
+                            <input type="text" id="masuk-new-kode" placeholder="Misal: BR-001">
+                        </div>
+                        <div class="form-group">
+                            <label for="masuk-new-nama">Nama Material</label>
+                            <input type="text" id="masuk-new-nama" placeholder="Misal: Semen Portland">
+                        </div>
+                    </div>
+                    <div class="form-row-2">
+                        <div class="form-group">
+                            <label for="masuk-new-gudang">Lokasi Stok Gudang</label>
+                            <select id="masuk-new-gudang">
+                                <option value="Gudang Utama">Gudang Utama</option>
+                                <option value="Gudang Besi">Gudang Besi</option>
+                                <option value="Gudang Semen">Gudang Semen</option>
+                                <option value="Site Lapangan">Site Lapangan</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="masuk-new-min">Batas Minimum Stok</label>
+                            <input type="number" id="masuk-new-min" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="masuk-jumlah">Jumlah Masuk (Kuantitas)</label>
+                        <input type="number" id="masuk-jumlah" min="0" step="any" required placeholder="0">
+                        <span class="input-helper" id="masuk-satuan-info" style="display:none;">Stok Saat Ini: -</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="masuk-tanggal">Tanggal Penerimaan</label>
+                        <input type="date" id="masuk-tanggal" required>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="masuk-satuan">Satuan</label>
+                        <input type="text" id="masuk-satuan" required placeholder="Misal: Sak, Kg, m3">
+                    </div>
+                    <div class="form-group">
+                        <label for="masuk-mr">No. MR (Material Request)</label>
+                        <input type="text" id="masuk-mr" placeholder="Contoh: MR-2026-001">
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="masuk-pr">No. PR (Purchase Request)</label>
+                        <input type="text" id="masuk-pr" placeholder="Contoh: PR-2026-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="masuk-fase">Proyek / Kategori Pekerjaan (Opsional)</label>
+                        <select id="masuk-fase">
+                            <option value="">-- Tidak Ditentukan / Stok Umum --</option>
+                            <!-- Injected dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="masuk-keperluan">Keperluan / Keterangan</label>
+                    <input type="text" id="masuk-keperluan" placeholder="Catatan tambahan (Contoh: Subsidi Pemda)">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-masuk')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-masuk">Simpan Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ORDER BARANG -->
+    <div id="modal-order" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-order-title">Catat Order Barang</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-order')">&times;</button>
+            </div>
+            <form id="form-order" class="modal-body">
+                <input type="hidden" id="order-id">
+                
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="order-tanggal">Tanggal</label>
+                        <input type="date" id="order-tanggal" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="order-partnumber">Part Number</label>
+                        <input type="text" id="order-partnumber" placeholder="Misal: BR-001">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="order-nama">Nama Material</label>
+                    <input type="text" id="order-nama" required placeholder="Misal: Semen Portland">
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="order-mr">No. MR (Material Request)</label>
+                        <input type="text" id="order-mr" placeholder="Contoh: MR-2026-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="order-pr">No. PR (Purchase Requisition)</label>
+                        <input type="text" id="order-pr" placeholder="Contoh: PR-2026-001">
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="order-qty">Jumlah (Qty)</label>
+                        <input type="number" id="order-qty" min="0" step="any" required placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="order-satuan">Satuan</label>
+                        <input type="text" id="order-satuan" required placeholder="Misal: Sak, Kg">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="order-keperluan">Keperluan</label>
+                    <input type="text" id="order-keperluan" placeholder="Misal: Stok proyek utama">
+                </div>
+
+                <div class="form-group">
+                    <label for="order-remark">Remark / Keterangan Tambahan</label>
+                    <input type="text" id="order-remark" placeholder="Misal: Segera diproses">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-order')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-order">Simpan Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div id="main-app" class="app-wrapper hidden">
+        <!-- SIDEBAR NAVIGATION -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-box" style="background: transparent; box-shadow: none; width: 50px; height: 50px;">
+                    <img src="logo.png" alt="ABS Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                </div>
+                <div class="brand-info">
+                    <span class="brand-name" style="font-weight: 800; text-transform: uppercase;">PT. ARTA BUMI SAKTI</span>
+                    <span class="brand-type" style="color: var(--accent-orange); font-size: 0.75rem;">CIVIL & CONSTRUCTION</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="dashboard" id="nav-dashboard">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-tab="progres" id="nav-progres">
+                    <i data-lucide="activity"></i>
+                    <span>Progres Project</span>
+                </button>
+                <button class="nav-item" data-tab="rab" id="nav-rab">
+                    <i data-lucide="calculator"></i>
+                    <span>RAB</span>
+                </button>
+                <button class="nav-item" data-tab="order" id="nav-order">
+                    <i data-lucide="shopping-cart"></i>
+                    <span>Order Material</span>
+                </button>
+                <button class="nav-item" data-tab="penggunaan" id="nav-penggunaan">
+                    <i data-lucide="package-minus"></i>
+                    <span>Penggunaan Material</span>
+                </button>
+                <button class="nav-item" data-tab="masuk" id="nav-masuk">
+                    <i data-lucide="package-plus"></i>
+                    <span>Barang Masuk</span>
+                </button>
+                <button class="nav-item" data-tab="stok" id="nav-stok">
+                    <i data-lucide="boxes"></i>
+                    <span>Stok Material</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile" style="margin-bottom: 16px;">
+                    <div class="user-avatar">
+                        <span>AS</span>
+                    </div>
+                    <div class="user-details">
+                        <span class="user-name">Admin Project</span>
+                        <span class="user-role">Site Engineer</span>
+                    </div>
+                </div>
+
+                <button id="btn-change-password" class="btn btn-secondary" style="width: 100%; margin-bottom: 8px;">
+                    <i data-lucide="key"></i> Ubah Kata Sandi
+                </button>
+
+                <button id="btn-logout" class="btn btn-secondary" style="width: 100%; margin-bottom: 16px; border-color: rgba(239, 68, 68, 0.3); color: #fca5a5;">
+                    <i data-lucide="log-out"></i> Keluar Aplikasi
+                </button>
+                
+                <div class="copyright-box">
+                    <div class="copyright-text">
+                        &copy; 2026 HRGA Management
+                    </div>
+                    <div class="version-badge" title="Pembaruan Sistem v1.9.0">
+                        <span class="pulse-dot"></span> v1.9.0
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT CONTAINER -->
+        <main class="main-content">
+            <!-- MODAL 8: STATUS DETAIL -->
+    <div id="modal-status-detail" class="modal">
+        <div class="modal-content glass-card" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="modal-status-detail-title">Detail Proyek</h3>
+                <button class="btn-close" onclick="closeModal('modal-status-detail')">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div class="table-container">
+                    <table class="table" style="min-width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Nama Pekerjaan / Proyek</th>
+                                <th>Klasifikasi</th>
+                                <th>Progres</th>
+                                <th>Target Selesai</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-status-detail-body">
+                            <!-- Dynamic Content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-status-detail')">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 9: MATERIAL WARNING DETAIL -->
+    <div id="modal-material-warning" class="modal">
+        <div class="modal-content glass-card" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="modal-material-warning-title">Peringatan Material (Stok Kritis)</h3>
+                <button class="btn-close" onclick="closeModal('modal-material-warning')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="table-container">
+                    <table class="table" style="min-width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Nama Material</th>
+                                <th>Kategori / Proyek Terkait</th>
+                                <th>Satuan</th>
+                                <th>Stok Tersedia</th>
+                                <th>Batas Minimum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-material-warning-body">
+                            <!-- Dynamic Content -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-material-warning')">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFO CARD -->
+    <div id="modal-card-info" class="modal">
+        <div class="modal-content glass-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="modal-card-info-title">Informasi Card</h3>
+                <button class="btn-close" onclick="closeModal('modal-card-info')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding-top: 10px; padding-bottom: 20px;">
+                <p id="modal-card-info-desc" style="color: var(--text-secondary); line-height: 1.6;"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="closeModal('modal-card-info')">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL GANTI PASSWORD -->
+    <div id="modal-change-password" class="modal">
+        <div class="modal-content glass-card" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 id="modal-change-password-title">Ubah Kata Sandi</h3>
+                <button class="btn-close" onclick="closeModal('modal-change-password')">&times;</button>
+            </div>
+            <form id="form-change-password" class="modal-body">
+                <div class="form-group">
+                    <label for="old-password">Kata Sandi Saat Ini</label>
+                    <input type="password" id="old-password" required placeholder="Masukkan kata sandi lama">
+                </div>
+                <div class="form-group">
+                    <label for="new-password">Kata Sandi Baru</label>
+                    <input type="password" id="new-password" required placeholder="Masukkan kata sandi baru">
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Konfirmasi Sandi Baru</label>
+                    <input type="password" id="confirm-password" required placeholder="Ketik ulang kata sandi baru">
+                </div>
+                <div class="modal-footer" style="margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-change-password')">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION SYSTEM -->
+            <header class="top-bar">
+                <div class="page-title-section">
+                    <h2 id="current-tab-title">Dashboard Utama</h2>
+                    <p class="tab-subtitle" id="current-tab-subtitle">Ringkasan real-time status pembangunan infrastruktur.</p>
+                </div>
+                
+                <div class="top-bar-actions" style="display: flex; gap: 15px; align-items: center;">
+                    <!-- Global Dashboard Filter -->
+                    <div class="global-filter" style="display: flex; align-items: center; gap: 8px;">
+                        <label for="dashboard-year-filter" style="font-size: 0.85rem; color: var(--text-muted);"><i data-lucide="filter" style="width: 14px; height: 14px;"></i> Tahun:</label>
+                        <select id="dashboard-year-filter" style="padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-light); outline: none; cursor: pointer;">
+                            <option value="all">Semua Waktu</option>
+                            <option value="2026" selected>2026</option>
+                            <option value="2025">2025</option>
+                            <option value="2024">2024</option>
+                        </select>
+                    </div>
+
+                    <!-- Network Sync Indicator -->
+                    <div class="sync-status-card" id="network-status-card" style="display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease;">
+                        <div id="network-dot" style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); transition: all 0.3s ease;"></div>
+                        <span id="network-text" style="font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); transition: all 0.3s ease;">Online - Tersinkron</span>
+                    </div>
+
+                    <div class="live-clock-card premium-clock">
+                        <div class="clock-icon-wrapper">
+                            <i data-lucide="calendar-clock"></i>
+                        </div>
+                        <div class="clock-details">
+                            <span id="top-bar-time" class="time-text-large">--:--:--</span>
+                            <span id="top-bar-date" class="date-text-full">Memuat tanggal...</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- PROJECT HEADER REMOVED: Proyek utama ada banyak -->
+
+            <!-- TAB PANELS -->
+            <div class="tab-content-wrapper">
+                
+                <!-- TAB 1: DASHBOARD -->
+                <section id="tab-dashboard" class="tab-panel active">
+                    <!-- KPI CARDS -->
+                    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                        <div class="kpi-card glow-blue kpi-card-interactive" id="card-total-kategori" onclick="showCardInfo('card-total-kategori')" style="cursor: pointer; transition: transform 0.2s;">
+                            <div class="kpi-icon-box bg-blue">
+                                <i data-lucide="layers"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Kategori Pekerjaan</span>
+                                <h3 class="kpi-value" id="kpi-total-kategori">0 Fase</h3>
+                                <span class="kpi-trend trend-blue">Total Fase Konstruksi</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card glow-purple kpi-card-interactive" id="card-total-item" onclick="showCardInfo('card-total-item')" style="cursor: pointer; transition: transform 0.2s;">
+                            <div class="kpi-icon-box bg-purple" style="background: rgba(168, 85, 247, 0.2); color: #a855f7;">
+                                <i data-lucide="list"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Rincian Item Pekerjaan</span>
+                                <h3 class="kpi-value" id="kpi-total-item">0 Item</h3>
+                                <span class="kpi-trend">Total Rincian Sub-Pekerjaan</span>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card glow-green kpi-card-interactive" id="card-progres-akumulatif" onclick="showCardInfo('card-progres-akumulatif')" style="cursor: pointer; transition: transform 0.2s;">
+                            <div class="kpi-icon-box bg-green">
+                                <i data-lucide="percent"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Progres Proyek Akumulatif</span>
+                                <h3 class="kpi-value" id="kpi-total-progress">0%</h3>
+                                <div class="progress-mini-bar">
+                                    <div class="progress-mini-fill" id="kpi-progress-fill" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="kpi-card glow-orange kpi-card-interactive" id="card-material-warning" onclick="showCardInfo('card-material-warning')" style="cursor: pointer; transition: transform 0.2s;">
+                            <div class="kpi-icon-box bg-orange" style="background: rgba(249, 115, 22, 0.2); color: #f97316;">
+                                <i data-lucide="alert-triangle"></i>
+                            </div>
+                            <div class="kpi-info">
+                                <span class="kpi-label">Peringatan Material</span>
+                                <h3 class="kpi-value" id="kpi-stok-kritis">0 Item</h3>
+                                <span class="kpi-trend trend-orange" id="kpi-stok-desc" style="color: #f97316;">Klik untuk detail stok kritis</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KLASIFIKASI PEKERJAAN SUMMARY -->
+                    <div class="glass-card" style="margin-top: 24px;">
+                        <div class="card-header">
+                            <h4 class="card-title">Distribusi Kategori Pekerjaan</h4>
+                            <p class="card-subtitle">Pengelompokan status pekerjaan berdasarkan klasifikasi.</p>
+                        </div>
+                        <div class="kpi-grid" style="margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="kpi-card kpi-card-interactive" id="card-klasifikasi-baru" style="border-left: 4px solid var(--accent-blue); cursor: pointer; transition: transform 0.2s;">
+                                <div class="kpi-info">
+                                    <span class="kpi-label text-blue" style="font-weight: 700;">Project Baru</span>
+                                    <h3 class="kpi-value" id="kpi-klasifikasi-baru">0</h3>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-card-interactive" id="card-klasifikasi-maintenance" style="border-left: 4px solid var(--accent-green); cursor: pointer; transition: transform 0.2s;">
+                                <div class="kpi-info">
+                                    <span class="kpi-label text-green" style="font-weight: 700;">Maintenance</span>
+                                    <h3 class="kpi-value" id="kpi-klasifikasi-maintenance">0</h3>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-card-interactive" id="card-klasifikasi-lain" style="border-left: 4px solid var(--text-muted); cursor: pointer; transition: transform 0.2s;">
+                                <div class="kpi-info">
+                                    <span class="kpi-label text-muted" style="font-weight: 700;">Lain-lain</span>
+                                    <h3 class="kpi-value" id="kpi-klasifikasi-lain">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STATUS PEKERJAAN SUMMARY -->
+                    <div class="glass-card" style="margin-top: 24px;">
+                        <div class="card-header">
+                            <h4 class="card-title">Summary Status Pekerjaan</h4>
+                            <p class="card-subtitle">Pengelompokan proyek berdasarkan status penyelesaiannya. Klik kartu untuk melihat detail.</p>
+                        </div>
+                        <div class="kpi-grid" style="margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="kpi-card kpi-card-interactive" id="card-status-selesai" style="border-left: 4px solid var(--accent-green); cursor: pointer; transition: transform 0.2s;">
+                                <div class="kpi-info">
+                                    <span class="kpi-label text-green" style="font-weight: 700;">Selesai</span>
+                                    <h3 class="kpi-value" id="kpi-status-selesai">0</h3>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-card-interactive" id="card-status-proses" style="border-left: 4px solid var(--accent-blue); cursor: pointer; transition: transform 0.2s;">
+                                <div class="kpi-info">
+                                    <span class="kpi-label text-blue" style="font-weight: 700;">Proses</span>
+                                    <h3 class="kpi-value" id="kpi-status-proses">0</h3>
+                                </div>
+                            </div>
+                            <div class="kpi-card kpi-card-interactive" id="card-status-belum" style="border-left: 4px solid var(--text-muted); cursor: pointer; transition: transform 0.2s;">
+                                <div class="kpi-info">
+                                    <span class="kpi-label text-muted" style="font-weight: 700;">Belum Selesai</span>
+                                    <h3 class="kpi-value" id="kpi-status-belum">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CHARTS DASHBOARD -->
+                    <div class="dashboard-grid-1" style="margin-top: 24px; display: grid; grid-template-columns: 1fr; gap: 20px;">
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h4 class="card-title">Grafik Kecepatan Pekerjaan</h4>
+                                <p class="card-subtitle">Perbandingan durasi target vs aktual (dalam hari).</p>
+                            </div>
+                            <div class="chart-container" style="position: relative; height:350px; margin-top:16px;">
+                                <canvas id="chart-rab-vs-realisasi"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TREN PEKERJAAN TERLAMA -->
+                    <div class="glass-card" style="margin-top: 24px;">
+                        <div class="card-header">
+                            <h4 class="card-title">Pekerjaan Paling Lama / Terlambat</h4>
+                            <p class="card-subtitle">Pekerjaan dengan durasi penyelesaian aktual terlama atau tingkat keterlambatan tertinggi.</p>
+                        </div>
+                        <div class="table-container" style="margin-top: 16px;">
+                            <table class="table" style="min-width: 600px;">
+                                <thead>
+                                    <tr>
+                                        <th>Nama Pekerjaan</th>
+                                        <th>Jadwal (Target)</th>
+                                        <th>Aktual Waktu</th>
+                                        <th>Deviasi Waktu</th>
+                                        <th>Status Waktu</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-tren-tercepat">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- RECENT ACTIVITIES & QUICK STATS -->
+                    <div class="dashboard-grid-2" style="margin-top: 24px;">
+                        <div class="glass-card">
+                            <div class="card-header-action">
+                                <h4 class="card-title">Log Penggunaan Material Terbaru</h4>
+                                <button class="btn btn-secondary btn-small" id="btn-quick-log">
+                                    <i data-lucide="plus"></i> Log Baru
+                                </button>
+                            </div>
+                            <div class="table-container">
+                                <table class="table" id="table-dashboard-logs">
+                                    <thead>
+                                        <tr>
+                                            <th>Tanggal</th>
+                                            <th>Material</th>
+                                            <th>Jumlah</th>
+                                            <th>Fase Proyek</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic Insert -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="glass-card">
+                            <div class="card-header">
+                                <h4 class="card-title">Ringkasan Status Pekerjaan</h4>
+                            </div>
+                            <div class="progress-list" id="dashboard-progress-summary">
+                                <!-- Dynamic progress indicators -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: PROGRES PROJECT -->
+                <section id="tab-progres" class="tab-panel">
+                    <div class="glass-card">
+                        <div class="card-header-action">
+                            <div>
+                                <h4 class="card-title">Daftar Fase Pekerjaan Pembangunan</h4>
+                                <p class="card-subtitle">Fase & bobot fisik ditarik langsung dari RAB. Klik chevron di sebelah kiri untuk mengubah progres fisik detail.</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" id="btn-export-progres" title="Export data ke Excel (xls)">
+                                    <i data-lucide="file-spreadsheet"></i> Export Excel
+                                </button>
+                                <button class="btn btn-secondary" id="btn-add-fase-progres-shortcut">
+                                    <i data-lucide="folder-plus"></i> Kelola Kategori (RAB)
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="search-filter-bar" style="margin-top: 20px; margin-bottom: 20px; display: flex; gap: 10px;">
+                            <div class="search-box" style="flex: 1;">
+                                <i data-lucide="search" class="search-icon"></i>
+                                <input type="text" id="search-progres" placeholder="Cari pekerjaan, fase..." class="input-search">
+                                <button type="button" class="btn-clear-search" id="clear-search-progres" title="Hapus Pencarian"><i data-lucide="x"></i></button>
+                            </div>
+                            <div class="filter-box" style="min-width: 200px;">
+                                <select id="filter-status-progres" class="input-select" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white;">
+                                    <option value="Semua">Semua Status</option>
+                                    <option value="Selesai">Selesai (100%)</option>
+                                    <option value="Proses">Proses (>0% - <100%)</option>
+                                    <option value="Belum Selesai">Belum Selesai (0%)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-container" style="margin-top: 20px;">
+                            <table class="table" id="table-progres-project">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Fase Pekerjaan</th>
+                                        <th style="width: 140px;">Bobot Pekerjaan</th>
+                                        <th>Jadwal / Aktual (Status)</th>
+                                        <th>Target Progres</th>
+                                        <th>Realisasi Progres</th>
+                                        <th>Kendala / Catatan</th>
+                                        <th>Lampiran Gambar</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-progres-body">
+                                    <!-- Dynamic Insert -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: RAB (RENCANA ANGGARAN BIAYA) -->
+                <section id="tab-rab" class="tab-panel">
+                    <div class="glass-card">
+                        <div class="card-header-action">
+                            <div>
+                                <h4 class="card-title">Rencana Kebutuhan Material/Jasa & Rincian Bahan/Jasa</h4>
+                                <p class="card-subtitle">Susun kategori pekerjaan, sub-pekerjaan, serta rincian kebutuhan material atau jasa kontruksi.</p>
+                            </div>
+                            <div class="btn-group" style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" id="btn-export-rab" title="Export data ke Excel (xls)">
+                                    <i data-lucide="file-spreadsheet"></i> Export Excel
+                                </button>
+                                <button class="btn btn-secondary" id="btn-export-rab-pdf" title="Cetak / Export Laporan ke PDF">
+                                    <i data-lucide="printer"></i> Cetak PDF
+                                </button>
+                                <button class="btn btn-secondary" id="btn-add-kategori">
+                                    <i data-lucide="folder-plus"></i> Tambah Kategori
+                                </button>
+                                <button class="btn btn-secondary" id="btn-add-sub-pekerjaan-trigger">
+                                    <i data-lucide="file-plus"></i> Tambah Sub-Pekerjaan
+                                </button>
+                                <button class="btn btn-primary" id="btn-add-rab">
+                                    <i data-lucide="plus"></i> Tambah Rincian Item
+                                </button>
+                            </div>
+                        </div>
+
+
+
+                        <div class="table-container">
+                            <table class="table" id="table-rab-project">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Kategori / Pekerjaan / Item</th>
+                                        <th style="width: 140px;">Bobot Pekerjaan</th>
+                                        <th>Satuan</th>
+                                        <th>Volume</th>
+                                        <th>Lampiran Gambar</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-rab-body">
+                                    <!-- Dynamic Insert -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3b: ORDER MATERIAL -->
+                <section id="tab-order" class="tab-panel">
+                    <div class="glass-card">
+                        <div class="action-bar" style="justify-content: space-between;">
+                            <div class="tab-instructions">
+                                <i data-lucide="info"></i> Pantau dan kelola pesanan barang yang belum disuplai.
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-secondary" id="btn-export-order" title="Export data ke Excel (xls)">
+                                    <i data-lucide="file-spreadsheet"></i> Export Excel
+                                </button>
+                                <button class="btn btn-primary" id="btn-add-order">
+                                    <i data-lucide="plus"></i> Tambah Order Barang
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="search-filter-bar" style="margin-top: 20px; margin-bottom: 20px;">
+                            <div class="search-box">
+                                <i data-lucide="search" class="search-icon"></i>
+                                <input type="text" id="search-order" placeholder="Cari material, No. MR, atau No. PR..." class="input-search">
+                                <button type="button" class="btn-clear-search" id="clear-search-order" title="Hapus Pencarian"><i data-lucide="x"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="table" id="table-order-export">
+                                <thead>
+                                    <tr>
+                                        <th>Tanggal</th>
+                                        <th>No. MR</th>
+                                        <th>No. PR</th>
+                                        <th>Part Number</th>
+                                        <th>Nama Material</th>
+                                        <th>Qty</th>
+                                        <th>Satuan</th>
+                                        <th>Status</th>
+                                        <th>Keperluan</th>
+                                        <th>Remark</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-order-body">
+                                    <!-- Dynamic Insert -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: PENGGUNAAN MATERIAL -->
+                <section id="tab-penggunaan" class="tab-panel">
+                    <div class="glass-card">
+                        <div class="card-header-action">
+                            <div>
+                                <h4 class="card-title">Catatan Penggunaan Material</h4>
+                                <p class="card-subtitle">Log riwayat logistik pengeluaran bahan bangunan untuk operasional lapangan.</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" id="btn-export-penggunaan" title="Export data ke Excel (xls)">
+                                    <i data-lucide="file-spreadsheet"></i> Export Excel
+                                </button>
+                                <button class="btn btn-primary" id="btn-log-penggunaan">
+                                    <i data-lucide="plus"></i> Catat Penggunaan Baru
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="search-filter-bar" style="margin-top: 20px; margin-bottom: 20px;">
+                            <div class="search-box">
+                                <i data-lucide="search" class="search-icon"></i>
+                                <input type="text" id="search-penggunaan" placeholder="Cari material atau fase proyek..." class="input-search">
+                                <button type="button" class="btn-clear-search" id="clear-search-penggunaan" title="Hapus Pencarian"><i data-lucide="x"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Per-Project Usage Summary -->
+                        <div class="usage-project-summary" id="usage-project-summary">
+                            <!-- Dynamic project cost cards -->
+                        </div>
+
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Tanggal Penggunaan</th>
+                                        <th>Part Number</th>
+                                        <th>Nama Material</th>
+                                        <th>Jumlah Dipakai</th>
+                                        <th>Satuan</th>
+                                        <th>Fase Pekerjaan</th>
+                                        <th>Petugas/Penerima</th>
+                                        <th>Keterangan</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-penggunaan-body">
+                                    <!-- Dynamic Insert -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                    <!-- TAB 4b: BARANG MASUK -->
+                    <section id="tab-masuk" class="tab-panel">
+                        <div class="glass-card">
+                            <div class="action-bar" style="justify-content: space-between;">
+                                <div class="tab-instructions">
+                                    <i data-lucide="info"></i> Catat semua penerimaan material yang masuk ke gudang dari supplier.
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn btn-secondary" id="btn-export-masuk" title="Export data ke Excel (xls)">
+                                        <i data-lucide="file-spreadsheet"></i> Export Excel
+                                    </button>
+                                    <button class="btn btn-primary" id="btn-add-masuk">
+                                        <i data-lucide="plus"></i> Tambah Barang Masuk
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- KPI Masuk -->
+                            <div class="kpi-grid" style="margin-top: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                                <div class="kpi-card glow-blue">
+                                    <div class="kpi-icon-box bg-blue">
+                                        <i data-lucide="package-check"></i>
+                                    </div>
+                                    <div class="kpi-info">
+                                        <span class="kpi-label">Total Transaksi Masuk</span>
+                                        <h3 class="kpi-value" id="kpi-masuk-transaksi">0</h3>
+                                    </div>
+                                </div>
+                                <div class="kpi-card glow-green">
+                                    <div class="kpi-icon-box bg-green">
+                                        <i data-lucide="boxes"></i>
+                                    </div>
+                                    <div class="kpi-info">
+                                        <span class="kpi-label">Total Kuantitas Material</span>
+                                        <h3 class="kpi-value" id="kpi-masuk-kuantitas">0</h3>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="search-filter-bar" style="margin-top: 20px; margin-bottom: 20px;">
+                                <div class="search-box">
+                                    <i data-lucide="search" class="search-icon"></i>
+                                    <input type="text" id="search-masuk" placeholder="Cari material, No. MR, atau No. PR..." class="input-search">
+                                    <button type="button" class="btn-clear-search" id="clear-search-masuk" title="Hapus Pencarian"><i data-lucide="x"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Per-Project Masuk Summary -->
+                            <div class="usage-project-summary" id="masuk-project-summary">
+                                <!-- Dynamic project incoming summary cards -->
+                            </div>
+
+                            <div class="table-container">
+                                <table class="table" id="table-masuk-export">
+                                    <thead>
+                                        <tr>
+                                            <th>Tanggal Masuk</th>
+                                            <th>No. MR</th>
+                                            <th>No. PR</th>
+                                        <th>Part Number</th>
+                                        <th>Nama Material</th>
+                                        <th>Jumlah Masuk</th>
+                                        <th>Satuan</th>
+                                        <th>Keperluan</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-masuk-body">
+                                    <!-- Dynamic Insert -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                <!-- TAB 5: STOK MATERIAL -->
+                <section id="tab-stok" class="tab-panel">
+                    <div class="glass-card">
+                        <div class="card-header-action">
+                            <div>
+                                <h4 class="card-title">Inventarisasi & Stok Material Konstruksi</h4>
+                                <p class="card-subtitle">Kelola kuantitas bahan yang tersedia di gudang logistik proyek.</p>
+                            </div>
+                            <div class="btn-group" style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" id="btn-export-stok" title="Export data ke Excel (xls)">
+                                    <i data-lucide="file-spreadsheet"></i> Export Excel
+                                </button>
+                                <button class="btn btn-secondary" id="btn-add-stok-baru">
+                                    <i data-lucide="plus"></i> Tambah Item Baru
+                                </button>
+                                <button class="btn btn-primary" id="btn-update-stok-level">
+                                    <i data-lucide="refresh-cw"></i> Sesuaikan Stok
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="search-filter-bar" style="margin-top: 20px; margin-bottom: 20px;">
+                            <div class="search-box">
+                                <i data-lucide="search" class="search-icon"></i>
+                                <input type="text" id="search-stok" placeholder="Cari nama material di gudang..." class="input-search">
+                                <button type="button" class="btn-clear-search" id="clear-search-stok" title="Hapus Pencarian"><i data-lucide="x"></i></button>
+                            </div>
+                            <div class="filter-pills" id="filter-stok-status">
+                                <button class="pill active" data-filter="all">Semua</button>
+                                <button class="pill" data-filter="aman">Aman</button>
+                                <button class="pill" data-filter="menipis">Menipis</button>
+                                <button class="pill" data-filter="kritis">Kritis / Habis</button>
+                            </div>
+                        </div>
+
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Part Number</th>
+                                        <th>Nama Material</th>
+                                        <th>Stok Saat Ini</th>
+                                        <th>Batas Minimum (Threshold)</th>
+                                        <th>Satuan</th>
+                                        <th>Lokasi Gudang</th>
+                                        <th>Status Keamanan</th>
+                                        <th>Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-stok-body">
+                                    <!-- Dynamic Insert -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL 1: TAMBAH / UPDATE KATEGORI PEKERJAAN (FASE LEVEL 1) -->
+    <div id="modal-kategori" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-kategori-title">Tambah Kategori Pekerjaan</h3>
+                <button class="btn-close" onclick="closeModal('modal-kategori')">&times;</button>
+            </div>
+            <form id="form-kategori" class="modal-body">
+                <input type="hidden" id="kategori-id">
+                
+                <div class="form-group">
+                    <label for="kategori-nama">Nama Kategori Pekerjaan</label>
+                    <input type="text" id="kategori-nama" required placeholder="Contoh: Pekerjaan Pondasi & Tanah">
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="kategori-mulai">Tanggal Mulai Rencana</label>
+                        <input type="date" id="kategori-mulai" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="kategori-selesai">Tanggal Selesai Rencana</label>
+                        <input type="date" id="kategori-selesai" required>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="kategori-aktual-mulai">Aktual Mulai</label>
+                        <input type="date" id="kategori-aktual-mulai">
+                        <small class="text-muted">Kosongkan jika belum mulai</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="kategori-aktual-selesai">Aktual Selesai</label>
+                        <input type="date" id="kategori-aktual-selesai">
+                        <small class="text-muted">Kosongkan jika belum selesai</small>
+                    </div>
+                </div>
+
+                <div class="form-group" id="group-kategori-justifikasi" style="display: none;">
+                    <label for="kategori-justifikasi" style="color: var(--accent-red);">Justifikasi Keterlambatan (Wajib jika terlambat)</label>
+                    <textarea id="kategori-justifikasi" rows="2" placeholder="Jelaskan alasan keterlambatan penyelesaian proyek ini..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="kategori-klasifikasi">Klasifikasi Pekerjaan</label>
+                    <select id="kategori-klasifikasi" required>
+                        <option value="Project Baru">Project Baru</option>
+                        <option value="Maintenance">Maintenance</option>
+                        <option value="Pekerjaan Lain-lain">Pekerjaan Lain-lain</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="kategori-lampiran">Link Gambar Lampiran (Opsional)</label>
+                    <textarea id="kategori-lampiran" rows="4" placeholder="Masukkan link gambar (1 per baris).&#10;Bisa tambahkan judul sebelum link!&#10;Contoh:&#10;Tampak Depan | https://link1.com&#10;https://link2.com" style="width: 100%;"></textarea>
+                    <small style="color: var(--text-muted); display: block; margin-top: 4px;">Pemisah judul dan link otomatis dideteksi. Link akan dijadikan dropdown.</small>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-kategori')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-kategori">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 7: TAMBAH / UPDATE SUB-PEKERJAAN (LEVEL 2) -->
+    <div id="modal-sub-pekerjaan" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-sub-pekerjaan-title">Tambah Sub-Pekerjaan</h3>
+                <button class="btn-close" onclick="closeModal('modal-sub-pekerjaan')">&times;</button>
+            </div>
+            <form id="form-sub-pekerjaan" class="modal-body">
+                <input type="hidden" id="sub-id">
+                
+                <div class="form-group">
+                    <label for="sub-fase-id">Kategori Pekerjaan Utama (Induk)</label>
+                    <select id="sub-fase-id" required>
+                        <option value="" disabled selected>-- Pilih Kategori Pekerjaan --</option>
+                        <!-- Dynamic Injected -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="sub-nama">Nama Sub-Pekerjaan / Tahapan Pekerjaan</label>
+                    <input type="text" id="sub-nama" required placeholder="Contoh: Mob and demob, Pekerjaan persiapan, Pekerjaan tanah">
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="sub-jadwal-mulai">Jadwal Mulai</label>
+                        <input type="date" id="sub-jadwal-mulai">
+                    </div>
+                    <div class="form-group">
+                        <label for="sub-jadwal-selesai">Jadwal Selesai</label>
+                        <input type="date" id="sub-jadwal-selesai">
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="sub-aktual-mulai">Aktual Mulai</label>
+                        <input type="date" id="sub-aktual-mulai">
+                    </div>
+                    <div class="form-group">
+                        <label for="sub-aktual-selesai">Aktual Selesai</label>
+                        <input type="date" id="sub-aktual-selesai">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-sub-pekerjaan')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-sub-pekerjaan">Simpan Sub-Pekerjaan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: TAMBAH / UPDATE DETAIL RINCIAN ITEM RAB (LEVEL 3) -->
+    <div id="modal-rab" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-rab-title">Tambah Rincian Item RAB</h3>
+                <button class="btn-close" onclick="closeModal('modal-rab')">&times;</button>
+            </div>
+            <form id="form-rab" class="modal-body">
+                <input type="hidden" id="rab-id">
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="rab-fase-select">Kategori Pekerjaan (Induk)</label>
+                        <select id="rab-fase-select" required>
+                            <option value="" disabled selected>-- Pilih Kategori --</option>
+                            <!-- Injected via JS -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="rab-sub-select">Sub-Pekerjaan</label>
+                        <select id="rab-sub-select" required>
+                            <option value="" disabled selected>-- Pilih Sub-Pekerjaan --</option>
+                            <!-- Injected dynamically based on Category choice -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="rab-tipe">Tipe Item</label>
+                        <select id="rab-tipe" required>
+                            <option value="Jasa">Upah / Jasa Konstruksi (Kustom)</option>
+                            <option value="Bahan">Bahan / Material Gudang (Tersinkronisasi)</option>
+                        </select>
+                    </div>
+                    <div class="form-group hidden" id="group-rab-material">
+                        <label for="rab-material-id">Pilih Barang dari Gudang</label>
+                        <select id="rab-material-id">
+                            <option value="" disabled selected>-- Pilih Material --</option>
+                            <!-- Injected from stock inventory -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="rab-nama">Nama Rincian Item</label>
+                    <input type="text" id="rab-nama" required placeholder="Contoh: Semen Portland, Ongkos Cor">
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label for="rab-satuan">Satuan</label>
+                        <input type="text" id="rab-satuan" required placeholder="Zak, Batang, m3, Lsf, dll">
+                    </div>
+                    <div class="form-group">
+                        <label for="rab-volume">Volume (Qty)</label>
+                        <input type="number" id="rab-volume" min="0.01" step="0.01" required placeholder="Volume">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-rab')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-rab">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: PENGGUNAAN MATERIAL LOG -->
+    <div id="modal-penggunaan" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-penggunaan-title">Catat Penggunaan Material</h3>
+                <button class="btn-close" onclick="closeModal('modal-penggunaan')">&times;</button>
+            </div>
+            <form id="form-penggunaan" class="modal-body">
+                <input type="hidden" id="penggunaan-id">
+
+                <div class="form-group">
+                    <label for="penggunaan-material">Pilih Material</label>
+                    <select id="penggunaan-material" required>
+                        <option value="" disabled selected>-- Pilih Material dari Gudang --</option>
+                        <!-- Dynamic Options from Stock -->
+                    </select>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="penggunaan-jumlah">Jumlah yang Dipakai</label>
+                        <input type="number" id="penggunaan-jumlah" min="0.1" step="0.1" required placeholder="0">
+                        <span class="input-helper" id="stok-tersedia-info">Stok Tersedia: -</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="penggunaan-tanggal">Tanggal Pengeluaran</label>
+                        <input type="date" id="penggunaan-tanggal" required>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="penggunaan-fase">Digunakan Pada Kategori Pekerjaan</label>
+                        <select id="penggunaan-fase" required>
+                            <option value="" disabled selected>-- Pilih Kategori --</option>
+                            <!-- Dynamic Options -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="penggunaan-sub">Pilih Sub-Pekerjaan Terkait</label>
+                        <select id="penggunaan-sub" required>
+                            <option value="" disabled selected>-- Pilih Sub-Pekerjaan --</option>
+                            <!-- Dynamic dependent dropdown based on selected Category -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="penggunaan-penerima">Petugas Lapangan / Penerima</label>
+                        <input type="text" id="penggunaan-penerima" required placeholder="Nama mandor / pelaksana">
+                    </div>
+                    <div class="form-group">
+                        <label for="penggunaan-keterangan">Keterangan</label>
+                        <input type="text" id="penggunaan-keterangan" placeholder="Catatan tambahan">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-penggunaan')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-penggunaan">Simpan Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: TAMBAH / UPDATE STOK MATERIAL -->
+    <div id="modal-stok" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-stok-title">Tambah Item Material Baru</h3>
+                <button class="btn-close" onclick="closeModal('modal-stok')">&times;</button>
+            </div>
+            <form id="form-stok" class="modal-body">
+                <input type="hidden" id="stok-id">
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="stok-kode">Part Number</label>
+                        <input type="text" id="stok-kode" required placeholder="PN-001">
+                    </div>
+                    <div class="form-group">
+                        <label for="stok-nama">Nama Material</label>
+                        <input type="text" id="stok-nama" required placeholder="Semen Portland 50kg, Besi D16, dll">
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label for="stok-jumlah">Kuantitas Stok Awal</label>
+                        <input type="number" id="stok-jumlah" min="0" step="0.1" required value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="stok-min">Batas Minimum (Threshold)</label>
+                        <input type="number" id="stok-min" min="0" step="0.1" required value="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="stok-satuan">Satuan</label>
+                        <input type="text" id="stok-satuan" required placeholder="Zak, Batang, m3, dll">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="stok-gudang">Lokasi Penyimpanan / Gudang</label>
+                    <input type="text" id="stok-gudang" required placeholder="Gudang A, Stockyard Barat, dll">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-stok')">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-stok">Simpan Material</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 5: ADJUST STOK QUANTITY -->
+    <div id="modal-adjust-stok" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3>Sesuaikan Kuantitas Stok Material</h3>
+                <button class="btn-close" onclick="closeModal('modal-adjust-stok')">&times;</button>
+            </div>
+            <form id="form-adjust-stok" class="modal-body">
+                <div class="form-group">
+                    <label for="adjust-material">Pilih Material</label>
+                    <select id="adjust-material" required>
+                        <option value="" disabled selected>-- Pilih Material --</option>
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Stok Saat Ini</label>
+                        <input type="text" id="adjust-current-info" disabled style="background: rgba(255,255,255,0.02); opacity: 0.6;">
+                    </div>
+                    <div class="form-group">
+                        <label for="adjust-type">Jenis Penyesuaian</label>
+                        <select id="adjust-type" required>
+                            <option value="in">Stok Masuk (Kirim Tambahan)</option>
+                            <option value="set">Setel Ulang Jumlah Absolut</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="adjust-qty">Jumlah Kuantitas</label>
+                    <input type="number" id="adjust-qty" min="0.1" step="0.1" required placeholder="0">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-adjust-stok')">Batal</button>
+                    <button type="submit" class="btn btn-primary">Terapkan Penyesuaian</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 6: PERBARUI PROGRES FISIK SUB-PEKERJAAN (LEVEL 2) -->
+    <div id="modal-edit-progres" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3 id="modal-edit-progres-title">Perbarui Progres Fisik Sub-Pekerjaan</h3>
+                <button class="btn-close" onclick="closeModal('modal-edit-progres')">&times;</button>
+            </div>
+            <form id="form-edit-progres" class="modal-body">
+                <input type="hidden" id="edit-progres-sub-id">
+
+                <div class="form-group">
+                    <label>Nama Sub-Pekerjaan</label>
+                    <input type="text" id="edit-progres-nama" disabled style="background: rgba(255,255,255,0.02); opacity: 0.8; font-weight:600;">
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="edit-progres-target">Target Progres (%)</label>
+                        <input type="number" id="edit-progres-target" min="0" max="100" step="1" required placeholder="Target S-Curve">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-progres-aktual">Realisasi Progres Lapangan (%)</label>
+                        <input type="number" id="edit-progres-aktual" min="0" max="100" step="1" required placeholder="Realisasi Progres Fisik">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-progres-kendala">Kendala / Masalah (Opsional)</label>
+                    <select id="edit-progres-kendala">
+                        <option value="">-- Tidak ada kendala --</option>
+                        <option value="Material Habis/Terlambat">Material Habis/Terlambat</option>
+                        <option value="Cuaca Buruk / Hujan">Cuaca Buruk / Hujan</option>
+                        <option value="Masalah Alat Berat">Masalah Alat Berat</option>
+                        <option value="Kekurangan Pekerja">Kekurangan Pekerja</option>
+                        <option value="Lainnya">Lainnya</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="group-edit-progres-catatan" style="display: none;">
+                    <label for="edit-progres-catatan">Catatan Detail Kendala</label>
+                    <input type="text" id="edit-progres-catatan" placeholder="Detail kendala yang terjadi...">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-progres')">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan Progres</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 8: MATERIAL DETAIL CARD (Generic) -->
+    <div id="modal-detail-card" class="modal">
+        <div class="modal-content glass-card detail-modal">
+            <div class="modal-header">
+                <h3 id="modal-detail-title">Detail Keterangan</h3>
+                <button type="button" class="btn-close" onclick="closeModal('modal-detail-card')">&times;</button>
+            </div>
+            <div class="modal-body detail-card-body">
+                <div class="detail-header-block">
+                    <div class="detail-icon" id="detail-icon-box">
+                        <i data-lucide="info"></i>
+                    </div>
+                    <div class="detail-title-info">
+                        <h4 id="detail-main-name">Nama Material</h4>
+                        <span id="detail-sub-name" class="badge">Part Number</span>
+                    </div>
+                </div>
+
+                <div class="detail-grid" id="detail-info-grid">
+                    <!-- Dynamic details will be injected here -->
+                </div>
+
+                <div class="detail-note" id="detail-keterangan-box">
+                    <strong>Keterangan Tambahan:</strong>
+                    <p id="detail-keterangan-text">-</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-detail-card')">Tutup Detail</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase JS SDK (Compat Mode) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
+    <!-- Searchable Dropdown Component -->
+    <script src="searchable-dropdown.js"></script>
+    <!-- Main App Script -->
+    <script src="app.js"></script>
+    <!-- Initialize Searchable Dropdowns after app loads -->
+    <script>
+        (function() {
+            const origInitApp = window.initApp || function(){};
+            // Patch initApp to also initialize searchable dropdowns after rendering
+            const _origInit = typeof initApp === 'function' ? initApp : null;
+            
+            // Wait for DOMContentLoaded, then hook into the app flow
+            document.addEventListener('DOMContentLoaded', () => {
+                // Initialize all selects that exist at page load
+                setTimeout(() => {
+                    if (window.SearchableDropdown) {
+                        SearchableDropdown.initAll();
+                    }
+                }, 100);
+            });
+
+            // Also re-init after populateDropdowns is called
+            const origPopulate = window.populateDropdowns;
+            if (typeof origPopulate === 'function') {
+                // This is not exposed yet, we'll handle via MutationObserver in the component
+            }
+        })();
+    </script>
+</body>
+</html>
