@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import { customConfirm } from "@/lib/confirm";
 import { exportToExcel } from "@/lib/exportUtils";
 
-export default function RabTab({ rabs, projects, subPekerjaan, materials, loading, refreshData, saveData, allData }) {
+export default function ListPekerjaanTab({ listPekerjaans, projects, subPekerjaan, materials, loading, refreshData, saveData, allData }) {
   const PercentBadge = ({ value, type = "bobot" }) => {
       const numValue = Number(value || 0);
       if (type === "bobot") {
@@ -123,7 +123,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
     });
   };
 
-  // --- ITEM RAB CRUD ---
+  // --- Item Pekerjaan CRUD ---
   const handleOpenModal = (item = null, defaultSubId = "") => {
     if (item) { 
         const sub = subPekerjaan.find(s => s.id === item.subPekerjaanId);
@@ -151,25 +151,25 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
     
     try {
       if (isEdit) {
-        await updateItem("rab", form.id, data);
+        await updateItem("listPekerjaan", form.id, data);
       } else {
-        await addItem("rab", { ...data, progres: 0, target: 0 });
+        await addItem("listPekerjaan", { ...data, progres: 0, target: 0 });
       }
       saveData();
       setShowModal(false);
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Gagal menyimpan Item RAB!");
+      toast.error(err.message || "Gagal menyimpan Item Pekerjaan!");
     } finally {
       setIsSaving(false);
     }
   };
   const handleDelete = (id) => {
-    customConfirm("Hapus item RAB ini?", async () => {
+    customConfirm("Hapus Item Pekerjaan ini?", async () => {
       try {
-        await deleteItem("rab", id);
+        await deleteItem("listPekerjaan", id);
         saveData();
-        toast.success("Item RAB dihapus.");
+        toast.success("Item Pekerjaan dihapus.");
       } catch (err) {
         console.error(err);
         toast.error(err.message || "Gagal menghapus Item!");
@@ -178,14 +178,14 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
   };
 
   const filteredSubs = (faseId) => subPekerjaan.filter(s => s.faseId === faseId);
-  const filteredRabs = (subId) => rabs.filter(r => r.subPekerjaanId === subId);
+  const filteredlistPekerjaans = (subId) => listPekerjaans.filter(r => r.subPekerjaanId === subId);
 
   // Search logic
   const lowerSearch = searchTerm.toLowerCase();
   const matchSearch = (name) => name?.toLowerCase().includes(lowerSearch);
   const isItemMatch = (item) => matchSearch(item.nama);
   const isSubMatch = (sub, items) => matchSearch(sub.nama) || items.some(isItemMatch);
-  const isFaseMatch = (fase, subs) => matchSearch(fase.nama) || subs.some(sub => isSubMatch(sub, filteredRabs(sub.id)));
+  const isFaseMatch = (fase, subs) => matchSearch(fase.nama) || subs.some(sub => isSubMatch(sub, filteredlistPekerjaans(sub.id)));
 
   const handleExportExcel = () => {
     const data = [];
@@ -206,7 +206,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
           satuan: "",
           volume: ""
         });
-        const items = filteredRabs(sub.id);
+        const items = filteredlistPekerjaans(sub.id);
         items.forEach(item => {
           data.push({
             nama: `-- ${item.nama}`,
@@ -226,7 +226,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
       { header: "Satuan", key: "satuan", width: 10 },
       { header: "Volume", key: "volume", width: 15 },
     ];
-    exportToExcel(data, columns, "RAB_Data");
+    exportToExcel(data, columns, "List_Pekerjaan_Data");
   };
 
   const exportToPDF = () => {
@@ -276,7 +276,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
       <div className="glass-card">
         <div className="card-header-action non-printable" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
           <div>
-            <h4 className="card-title">Struktur Pekerjaan & RAB</h4>
+            <h4 className="card-title">Struktur Pekerjaan & List Pekerjaan</h4>
             <p className="card-subtitle">Sentralisasi kerangka proyek (Kategori → Sub-Pekerjaan → Rincian Item).</p>
           </div>
           <div className="btn-group" style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
@@ -303,7 +303,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
         </div>
 
         <div className="printable-header" style={{ display: 'none', marginBottom: '20px' }}>
-          <h2>Laporan Rencana Kebutuhan Material/Jasa (RAB)</h2>
+          <h2>Laporan Rencana Kebutuhan Material/Jasa (List Pekerjaan)</h2>
           <p>Dicetak pada: {new Date().toLocaleDateString('id-ID')}</p>
         </div>
 
@@ -323,7 +323,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>Memuat data RAB...</td></tr>
+                <tr><td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>Memuat data List Pekerjaan...</td></tr>
               ) : projects.length === 0 ? (
                 <tr><td colSpan="8" style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>Belum ada data struktur proyek. Silakan Tambah Kategori / Fase.</td></tr>
               ) : (
@@ -353,7 +353,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
                       {isKlasExpanded && klasProjects.map(fase => {
                         const isFaseExpanded = searchTerm ? true : expandedFases[fase.id] === true; // default collapsed
                         let subs = filteredSubs(fase.id);
-                        if (searchTerm) subs = subs.filter(sub => isSubMatch(sub, filteredRabs(sub.id)));
+                        if (searchTerm) subs = subs.filter(sub => isSubMatch(sub, filteredlistPekerjaans(sub.id)));
                         const hasManualBobot = fase.bobotManual !== undefined && fase.bobotManual !== "" && fase.bobotManual !== null;
 
                         return (
@@ -399,7 +399,7 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
 
                             {isFaseExpanded && subs.map(sub => {
                               const isSubExpanded = searchTerm ? true : expandedSubs[sub.id] === true; // default collapsed
-                              let items = filteredRabs(sub.id);
+                              let items = filteredlistPekerjaans(sub.id);
                               if (searchTerm && !matchSearch(sub.nama)) {
                                   items = items.filter(isItemMatch);
                               }
@@ -587,12 +587,12 @@ export default function RabTab({ rabs, projects, subPekerjaan, materials, loadin
         </div>
       )}
 
-      {/* MODAL ITEM RAB */}
+      {/* MODAL Item Pekerjaan */}
       {showModal && (
         <div className="modal active non-printable" style={{ zIndex: 9999 }}>
           <div className="modal-content glass-card" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
-              <h3>{isEdit ? 'Edit Item RAB' : 'Tambah Item RAB'}</h3>
+              <h3>{isEdit ? 'Edit Item Pekerjaan' : 'Tambah Item Pekerjaan'}</h3>
               <button type="button" className="btn-close" onClick={() => setShowModal(false)}>&times;</button>
             </div>
             <form className="modal-body" onSubmit={handleSave} style={{ maxHeight: '75vh', overflowY: 'auto', paddingRight: '10px' }}>

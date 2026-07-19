@@ -242,7 +242,16 @@ export default function OrderTab({ orders, loading, refreshData, saveData, allDa
               </div>
               <div className="form-group">
                 <label>Keperluan</label>
-                <input type="text" value={form.keperluan} onChange={(e) => setForm({...form, keperluan: e.target.value})} placeholder="Stok proyek utama" />
+                <select 
+                  required 
+                  value={form.keperluan} 
+                  onChange={(e) => setForm({...form, keperluan: e.target.value})} 
+                >
+                  <option value="">-- Pilih Keperluan (Fase Pekerjaan) --</option>
+                  {(allData.fases || []).map(fase => (
+                     <option key={fase.id} value={fase.nama}>{fase.nama}</option>
+                  ))}
+                </select>
               </div>
               <div style={{ display: 'flex', gap: '15px' }}>
                 <div className="form-group" style={{ flex: 1 }}>

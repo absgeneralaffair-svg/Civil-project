@@ -13,7 +13,7 @@ import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import DashboardTab from "@/components/tabs/DashboardTab";
 import ProgresTab from "@/components/tabs/ProgresTab";
-import RabTab from "@/components/tabs/RabTab";
+import ListPekerjaanTab from "@/components/tabs/ListPekerjaanTab";
 import OrderTab from "@/components/tabs/OrderTab";
 import PenggunaanTab from "@/components/tabs/PenggunaanTab";
 import BarangMasukTab from "@/components/tabs/BarangMasukTab";
@@ -42,7 +42,7 @@ const INITIAL_SUB_PEKERJAAN = [
   { id: "sp-10", faseId: "f-5", nama: "Pekerjaan Pengecatan Dasar & Finishing", progres: 0, target: 0 }
 ];
 
-const INITIAL_RAB = [
+const INITIAL_LIST_PEKERJAAN = [
   { id: "r-1", subPekerjaanId: "sp-1", tipe: "Jasa", nama: "Sewa Mobil Trailer Angkut Excavator", materialId: null, satuan: "Unit", volume: 2, harga: 4000000, realisasi: 8000000 },
   { id: "r-2", subPekerjaanId: "sp-1", tipe: "Jasa", nama: "Ongkos Bongkar Muat Alat Berat", materialId: null, satuan: "Lsf", volume: 1, harga: 2000000, realisasi: 2000000 },
   { id: "r-3", subPekerjaanId: "sp-2", tipe: "Bahan", nama: "Semen Portland 50kg (Gresik)", materialId: "s-1", satuan: "Zak", volume: 20, harga: 75000, realisasi: 1500000 },
@@ -84,10 +84,10 @@ const INITIAL_ORDERS = [
   { id: "o-1", tanggal: "2026-06-15", mr: "MR-2026-002", pr: "PR-2026-002", partnumber: "PN-005", nama: "Kerikil / Batu Pecah 2/3", qty: 50, satuan: "m3", keperluan: "Persiapan cor", remark: "Segera follow up ke supplier" }
 ];
 
-function run3LevelEVMRollups(fases, subPekerjaan, rab) {
+function run3LevelEVMRollups(fases, subPekerjaan, listPekerjaan) {
   let clonedFases = JSON.parse(JSON.stringify(fases || []));
   let clonedSub = JSON.parse(JSON.stringify(subPekerjaan || []));
-  let clonedRab = JSON.parse(JSON.stringify(rab || []));
+  let clonedListPekerjaan = JSON.parse(JSON.stringify(listPekerjaan || []));
 
   clonedFases.forEach(fase => {
       fase.bobot = 100;
@@ -101,7 +101,7 @@ function run3LevelEVMRollups(fases, subPekerjaan, rab) {
                         ? Number(sub.bobotManual) 
                         : (faseSubs.length > 0 ? (1 / faseSubs.length) * 100 : 0);
           
-          const subItems = clonedRab.filter(item => item.subPekerjaanId === sub.id);
+          const subItems = clonedListPekerjaan.filter(item => item.subPekerjaanId === sub.id);
           if (subItems.length > 0) {
               let weightedSubProgress = 0;
               let weightedSubTarget = 0;
@@ -142,7 +142,7 @@ function run3LevelEVMRollups(fases, subPekerjaan, rab) {
       }
   });
 
-  return { computedFases: clonedFases, computedSub: clonedSub, computedRab: clonedRab };
+  return { computedFases: clonedFases, computedSub: clonedSub, computedlistPekerjaan: clonedListPekerjaan };
 }
 
 export default function DashboardApp() {
@@ -156,7 +156,7 @@ export default function DashboardApp() {
   const [projects, setProjects] = React.useState([]);
   const [materials, setMaterials] = React.useState([]);
   const [subPekerjaan, setSubPekerjaan] = React.useState([]);
-  const [rabs, setRabs] = React.useState([]);
+  const [listPekerjaans, setlistPekerjaans] = React.useState([]);
   const [penggunaanLogs, setPenggunaanLogs] = React.useState([]);
   const [barangMasuk, setBarangMasuk] = React.useState([]);
   const [orders, setOrders] = React.useState([]);
@@ -193,7 +193,7 @@ export default function DashboardApp() {
          const data = docSnap.data();
          await migrateArrayToCollection("fases", data.fases || INITIAL_FASES);
          await migrateArrayToCollection("subPekerjaan", data.subPekerjaan || INITIAL_SUB_PEKERJAAN);
-         await migrateArrayToCollection("rab", data.rab || INITIAL_RAB);
+         await migrateArrayToCollection("listPekerjaan", data.listPekerjaan || INITIAL_LIST_PEKERJAAN);
          await migrateArrayToCollection("stok", data.stok || INITIAL_STOK);
          await migrateArrayToCollection("penggunaan", data.penggunaan || INITIAL_PENGGUNAAN);
          await migrateArrayToCollection("barangMasuk", data.barangMasuk || INITIAL_MASUK);
@@ -204,7 +204,7 @@ export default function DashboardApp() {
          // First time setup
          await migrateArrayToCollection("fases", INITIAL_FASES);
          await migrateArrayToCollection("subPekerjaan", INITIAL_SUB_PEKERJAAN);
-         await migrateArrayToCollection("rab", INITIAL_RAB);
+         await migrateArrayToCollection("listPekerjaan", INITIAL_LIST_PEKERJAAN);
          await migrateArrayToCollection("stok", INITIAL_STOK);
          await migrateArrayToCollection("penggunaan", INITIAL_PENGGUNAAN);
          await migrateArrayToCollection("barangMasuk", INITIAL_MASUK);
@@ -215,7 +215,7 @@ export default function DashboardApp() {
       // Subscribe to collections
       const unsubFases = subscribeCollection("fases", setProjects);
       const unsubSub = subscribeCollection("subPekerjaan", setSubPekerjaan);
-      const unsubRab = subscribeCollection("rab", setRabs);
+      const unsublistPekerjaan = subscribeCollection("listPekerjaan", setlistPekerjaans);
       const unsubStok = subscribeCollection("stok", setMaterials);
       const unsubPenggunaan = subscribeCollection("penggunaan", setPenggunaanLogs);
       const unsubMasuk = subscribeCollection("barangMasuk", setBarangMasuk);
@@ -224,7 +224,7 @@ export default function DashboardApp() {
       setLoading(false);
 
       return () => {
-        unsubFases(); unsubSub(); unsubRab(); unsubStok(); unsubPenggunaan(); unsubMasuk(); unsubOrders();
+        unsubFases(); unsubSub(); unsublistPekerjaan(); unsubStok(); unsubPenggunaan(); unsubMasuk(); unsubOrders();
       };
     } catch (error) {
       console.error("Error initializing data:", error);
@@ -245,16 +245,16 @@ export default function DashboardApp() {
   // Recalculate computed EVM arrays whenever raw arrays change
   const [computedFases, setComputedFases] = React.useState([]);
   const [computedSub, setComputedSub] = React.useState([]);
-  const [computedRab, setComputedRab] = React.useState([]);
+  const [computedlistPekerjaan, setComputedlistPekerjaan] = React.useState([]);
 
   React.useEffect(() => {
     if (projects.length > 0) {
-      const { computedFases, computedSub, computedRab } = run3LevelEVMRollups(projects, subPekerjaan, rabs);
+      const { computedFases, computedSub, computedlistPekerjaan } = run3LevelEVMRollups(projects, subPekerjaan, listPekerjaans);
       setComputedFases(computedFases);
       setComputedSub(computedSub);
-      setComputedRab(computedRab);
+      setComputedlistPekerjaan(computedlistPekerjaan);
     }
-  }, [projects, subPekerjaan, rabs]);
+  }, [projects, subPekerjaan, listPekerjaans]);
 
   const saveData = React.useCallback(async () => {
     // Legacy saveData fallback; no longer needed for primary operations
@@ -282,7 +282,7 @@ export default function DashboardApp() {
   const tabTitles = {
     dashboard: { title: "Dashboard Utama", subtitle: "Ringkasan real-time status pembangunan infrastruktur." },
     progres: { title: "Progres Fisik Proyek", subtitle: "Rincian bobot dan kemajuan fisik pembangunan." },
-    rab: { title: "Rencana Kebutuhan Material/Jasa", subtitle: "Susunan rencana kebutuhan volume material/jasa." },
+    listPekerjaan: { title: "Rencana Kebutuhan Material/Jasa", subtitle: "Susunan rencana kebutuhan volume material/jasa." },
     order: { title: "Order Material", subtitle: "Pengajuan dan pelacakan pesanan material." },
     penggunaan: { title: "Barang Keluar", subtitle: "Catatan riwayat pengeluaran material dari gudang ke lapangan." },
     masuk: { title: "Penerimaan Barang Masuk", subtitle: "Log riwayat penerimaan material dari supplier ke gudang dengan referensi MR/PR." },
@@ -295,7 +295,7 @@ export default function DashboardApp() {
   const allData = {
     fases: computedFases.length ? computedFases : projects,
     subPekerjaan: computedSub.length ? computedSub : subPekerjaan,
-    rab: computedRab.length ? computedRab : rabs,
+    listPekerjaan: computedlistPekerjaan.length ? computedlistPekerjaan : listPekerjaans,
     stok: materials,
     penggunaan: penggunaanLogs,
     barangMasuk,
@@ -329,9 +329,9 @@ export default function DashboardApp() {
         />
         
         <div className="tab-content-wrapper">
-          {activeTab === "dashboard" && <DashboardTab projects={allData.fases} subPekerjaan={allData.subPekerjaan} rabs={allData.rab} materials={allData.stok} penggunaanLogs={allData.penggunaan} loading={loading} refreshData={fetchData} selectedYear={selectedYear} allData={allData} />}
-          {activeTab === "progres" && <ProgresTab projects={allData.fases} subPekerjaan={allData.subPekerjaan} rabs={allData.rab} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
-          {activeTab === "rab" && <RabTab rabs={allData.rab} projects={allData.fases} subPekerjaan={allData.subPekerjaan} materials={materials} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
+          {activeTab === "dashboard" && <DashboardTab projects={allData.fases} subPekerjaan={allData.subPekerjaan} listPekerjaans={allData.listPekerjaan} materials={allData.stok} penggunaanLogs={allData.penggunaan} loading={loading} refreshData={fetchData} selectedYear={selectedYear} allData={allData} />}
+          {activeTab === "progres" && <ProgresTab projects={allData.fases} subPekerjaan={allData.subPekerjaan} listPekerjaans={allData.listPekerjaan} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
+          {activeTab === "listPekerjaan" && <ListPekerjaanTab listPekerjaans={allData.listPekerjaan} projects={allData.fases} subPekerjaan={allData.subPekerjaan} materials={materials} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
           {activeTab === "order" && <OrderTab orders={orders} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
           {activeTab === "penggunaan" && <PenggunaanTab logs={penggunaanLogs} materials={materials} projects={projects} subPekerjaan={subPekerjaan} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}
           {activeTab === "masuk" && <BarangMasukTab masukLogs={barangMasuk} materials={materials} loading={loading} refreshData={fetchData} saveData={saveData} allData={allData} />}

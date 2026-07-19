@@ -113,7 +113,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   // States for FASE Update Modal (Manual Progress)
   const [showFaseUpdateModal, setShowFaseUpdateModal] = useState(false);
-  const [faseUpdateForm, setFaseUpdateForm] = useState({ id: "", progresManual: "", kendala: "" });
+  const [faseUpdateForm, setFaseUpdateForm] = useState({ id: "", progresManual: "", kendala: "", statusManual: "" });
 
   // States for SUB Update Modal (Manual Progress)
   const [showSubUpdateModal, setShowSubUpdateModal] = useState(false);
@@ -148,13 +148,13 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
 
   // Handlers for Fase Update
   const handleOpenFaseUpdate = (item) => {
-    setFaseUpdateForm({ id: item.id, progresManual: item.progresManual ?? "", kendala: item.kendala || "" });
+    setFaseUpdateForm({ id: item.id, progresManual: item.progresManual ?? "", kendala: item.kendala || "", statusManual: item.statusManual || "" });
     setShowFaseUpdateModal(true);
   };
   const handleSaveFaseUpdate = async (e) => {
     e.preventDefault();
     try {
-      await updateItem("fases", faseUpdateForm.id, { progresManual: faseUpdateForm.progresManual, kendala: faseUpdateForm.kendala });
+      await updateItem("fases", faseUpdateForm.id, { progresManual: faseUpdateForm.progresManual, kendala: faseUpdateForm.kendala, statusManual: faseUpdateForm.statusManual });
       saveData();
       setShowFaseUpdateModal(false);
     } catch (err) {
@@ -328,10 +328,11 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
             <thead>
               <tr style={{ background: "rgba(255,255,255,0.05)" }}>
                 <th className="non-printable" style={{ width: "40px" }}></th>
+                <th style={{ width: "110px", textAlign: "center" }}>Status</th>
                 <th>Kategori Pekerjaan</th>
                 <th>Gambar Kerja</th>
                 <th style={{ width: "10%" }}>Bobot</th>
-                <th>Jadwal / Status</th>
+                <th>Jadwal</th>
                 <th style={{ width: "15%" }}>Target Progres</th>
                 <th style={{ width: "15%" }}>Realisasi Progres</th>
                 <th>Kendala</th>
@@ -362,6 +363,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     {isKlasExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                 </button>
                             </td>
+                            <td></td>
                             <td colSpan="8" style={{ fontWeight: 800, color: klas.color, fontSize: "1.05rem", textTransform: 'uppercase', letterSpacing: '1px' }}>
                                 <Briefcase size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-bottom' }}/> {klas.id}
                             </td>
@@ -381,6 +383,17 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     <button className="btn-expand" style={{ background: "none", border: "none", color: "#fff", padding: "4px", pointerEvents: "none" }}>
                                         {isFaseExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                     </button>
+                                    </td>
+                                    <td style={{ textAlign: "center" }}>
+                                      {project.statusManual === "Hold" ? (
+                                        <span style={{ display: 'inline-block', background: "#ff4757", color: "white", padding: "4px 10px", borderRadius: "20px", fontWeight: "bold", fontSize: "0.72rem", letterSpacing: "0.5px", boxShadow: "0 0 8px rgba(255,71,87,0.6)" }}>HOLD</span>
+                                      ) : project.statusManual === "Selesai" ? (
+                                        <span style={{ display: 'inline-block', background: "#2ed573", color: "black", padding: "4px 10px", borderRadius: "20px", fontWeight: "bold", fontSize: "0.72rem", letterSpacing: "0.5px", boxShadow: "0 0 8px rgba(46,213,115,0.6)" }}>SELESAI</span>
+                                      ) : project.statusManual === "Progres" ? (
+                                        <span style={{ display: 'inline-block', background: "#1e90ff", color: "white", padding: "4px 10px", borderRadius: "20px", fontWeight: "bold", fontSize: "0.72rem", letterSpacing: "0.5px", boxShadow: "0 0 8px rgba(30,144,255,0.6)" }}>PROGRES</span>
+                                      ) : (
+                                        <span style={{ display: 'inline-block', background: "rgba(255,255,255,0.1)", color: "var(--text-muted)", padding: "4px 10px", borderRadius: "20px", fontSize: "0.72rem" }}>-</span>
+                                      )}
                                     </td>
                                     <td style={{ fontWeight: 700, color: "var(--primary-color)" }}>
                                       <FolderOpen size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }}/> {project.nama}
@@ -435,6 +448,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                     <React.Fragment key={sub.id}>
                                         <tr onClick={() => toggleSub(sub.id)} style={{ cursor: "pointer", background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.05)" }} className="row-hover">
                                         <td className="non-printable"></td>
+                                        <td></td>
                                         <td style={{ paddingLeft: "20px" }}>
                                             <button className="btn-expand non-printable" style={{ background: "none", border: "none", color: "var(--text-secondary)", marginRight: "8px", pointerEvents: "none" }}>
                                             {isSubExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -465,6 +479,7 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
                                         return (
                                             <tr key={item.id} style={{ background: "rgba(0,0,0,0.2)", borderBottom: "1px dashed rgba(255,255,255,0.05)" }}>
                                             <td className="non-printable"></td>
+                                            <td></td>
                                             <td style={{ paddingLeft: "50px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>• {item.nama}</td>
                                             <td style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>-</td>
                                             <td><PercentBadge value={item.bobot} type="bobot" /></td>
@@ -559,6 +574,17 @@ export default function ProgresTab({ projects, subPekerjaan, rabs, loading, refr
               <button type="button" className="btn-close" onClick={() => setShowFaseUpdateModal(false)}>&times;</button>
             </div>
             <form className="modal-body" onSubmit={handleSaveFaseUpdate}>
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label>Status Manual</label>
+                <select value={faseUpdateForm.statusManual} onChange={(e) => setFaseUpdateForm({...faseUpdateForm, statusManual: e.target.value})}>
+                  <option value="">-- Otomatis --</option>
+                  <option value="Progres">Progres</option>
+                  <option value="Selesai">Selesai</option>
+                  <option value="Hold">Hold</option>
+                </select>
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Pilih status manual untuk menimpa perhitungan otomatis.</small>
+              </div>
+
               <div className="form-group" style={{ marginBottom: '15px' }}>
                 <label>Realisasi Progres Manual (%)</label>
                 <input type="number" step="0.1" min="0" max="100" value={faseUpdateForm.progresManual} onChange={(e) => setFaseUpdateForm({...faseUpdateForm, progresManual: e.target.value})} placeholder="Kosongkan untuk otomatis EVM" />

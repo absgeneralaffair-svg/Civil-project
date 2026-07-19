@@ -17,7 +17,7 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, currentUser
   const navItems = [
     { id: "dashboard", icon: <LayoutDashboard size={18} />, label: "Dashboard" },
     { id: "progres", icon: <Activity size={18} />, label: "Progres Project" },
-    { id: "rab", icon: <Calculator size={18} />, label: "RAB" },
+    { id: "listPekerjaan", icon: <Calculator size={18} />, label: "List Pekerjaan" },
     { id: "order", icon: <ShoppingCart size={18} />, label: "Order Material" },
     { id: "penggunaan", icon: <PackageMinus size={18} />, label: "Barang Keluar" },
     { id: "masuk", icon: <PackagePlus size={18} />, label: "Barang Masuk" },
@@ -88,8 +88,8 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, currentUser
           <div className="copyright-text">
             &copy; 2026 HRGA Management
           </div>
-          <div className="version-badge" title="Pembaruan Sistem v2.5.1">
-            <span className="pulse-dot"></span> v2.5.1
+          <div className="version-badge" title="Pembaruan Sistem v2.7.0">
+            <span className="pulse-dot"></span> v2.7.0
           </div>
         </div>
       </div>

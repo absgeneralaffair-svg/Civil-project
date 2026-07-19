@@ -131,6 +131,14 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
       return { ...p, schedule };
   });
 
+  // Status Manual counts (synced from Progres Project)
+  const holdProjects = filteredProjects.filter(p => p.statusManual === "Hold");
+  const progresManualProjects = filteredProjects.filter(p => p.statusManual === "Progres");
+  const selesaiManualProjects = filteredProjects.filter(p => p.statusManual === "Selesai");
+  const holdCount = holdProjects.length;
+  const progresManualCount = progresManualProjects.length;
+  const selesaiManualCount = selesaiManualProjects.length;
+
   const delayedProjects = analyzedProjects.filter(p => p.schedule.isDelayed && !p.schedule.statusText.includes("Selesai"));
   const activeProjects = analyzedProjects.filter(p => p.schedule.statusText.includes("Berjalan") && !p.schedule.isDelayed);
   const completedProjects = analyzedProjects.filter(p => p.schedule.statusText.includes("Selesai"));
@@ -246,6 +254,48 @@ export default function DashboardTab({ projects, subPekerjaan, rabs, materials, 
             <span className="kpi-label">Fase Selesai</span>
             <h3 className="kpi-value">{loading ? "..." : completedCount} Fase</h3>
             <span className="kpi-trend trend-green" style={{ fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>Telah rampung</span>
+          </div>
+        </div>
+      </div>
+
+      {/* STATUS MANUAL CARDS */}
+      <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '24px' }}>
+        <div style={{ background: 'rgba(30,144,255,0.12)', border: '1px solid rgba(30,144,255,0.4)', borderRadius: '12px', padding: '18px', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setModalData({ title: "Status: PROGRES", data: progresManualProjects.map(p => ({ ...p, schedule: analyzeDateSchedule(p.mulai, p.selesai, p.aktualMulai, p.aktualSelesai, p.progres) })) })}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: '#1e90ff', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 12px rgba(30,144,255,0.6)' }}>
+              <PlayCircle size={20} color="white" />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(30,144,255,0.9)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status Progres</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#1e90ff', lineHeight: 1 }}>{loading ? '...' : progresManualCount}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Fase sedang berjalan</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: 'rgba(46,213,115,0.12)', border: '1px solid rgba(46,213,115,0.4)', borderRadius: '12px', padding: '18px', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setModalData({ title: "Status: SELESAI", data: selesaiManualProjects.map(p => ({ ...p, schedule: analyzeDateSchedule(p.mulai, p.selesai, p.aktualMulai, p.aktualSelesai, p.progres) })) })}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: '#2ed573', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 12px rgba(46,213,115,0.6)' }}>
+              <CheckCircle2 size={20} color="black" />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(46,213,115,0.9)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status Selesai</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2ed573', lineHeight: 1 }}>{loading ? '...' : selesaiManualCount}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Fase telah rampung</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ background: 'rgba(255,71,87,0.12)', border: '1px solid rgba(255,71,87,0.4)', borderRadius: '12px', padding: '18px', cursor: 'pointer', transition: 'transform 0.2s' }} onClick={() => setModalData({ title: "Status: HOLD", data: holdProjects.map(p => ({ ...p, schedule: analyzeDateSchedule(p.mulai, p.selesai, p.aktualMulai, p.aktualSelesai, p.progres) })) })}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ background: '#ff4757', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 12px rgba(255,71,87,0.6)' }}>
+              <AlertTriangle size={20} color="white" />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(255,71,87,0.9)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status Hold</div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ff4757', lineHeight: 1 }}>{loading ? '...' : holdCount}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>Fase ditangguhkan</div>
+            </div>
           </div>
         </div>
       </div>
